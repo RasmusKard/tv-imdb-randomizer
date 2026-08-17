@@ -55,12 +55,25 @@ export const fonts = {
 /** Every row on both screens is this many columns wide. */
 export const COLS = 7;
 
+const OVERSCAN_FRACTION = 0.05;
+const gap = s(12);
+const contentWidth = windowWidth * (1 - OVERSCAN_FRACTION * 2);
+
 export const layout = {
-  /** 5% on each edge, so nothing lands on a bezel. Percentages need no scaling. */
-  overscan: '5%',
-  gap: s(12),
+  /** 5% on each edge, so nothing lands on a bezel. */
+  overscan: `${OVERSCAN_FRACTION * 100}%`,
+  gap,
   radius: s(3),
   border: s(2),
+  contentWidth,
+  /**
+   * One column. Cells are sized, not flexed: a row with two cells has to leave
+   * them in columns 1 and 2 rather than stretching them across the screen,
+   * otherwise "down is straight down" stops being true.
+   */
+  cell: (contentWidth - (COLS - 1) * gap) / COLS,
+  /** Width of a cell spanning n columns, gaps included. */
+  span: (n: number) => (contentWidth - (COLS - 1) * gap) / COLS * n + gap * (n - 1),
 } as const;
 
 /**
