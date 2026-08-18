@@ -18,6 +18,14 @@ import { layout } from '../theme';
  * a genre chip down and to the right — exactly the unpredictable jump the grid
  * exists to prevent.
  *
+ * Vertical wiring (`rowFocusUp`/`rowFocusDown`) exists because geometry alone
+ * cannot reach a full-width neighbour. Android's FocusFinder scores candidates
+ * as 13*major^2 + minor^2, where `minor` is the distance between the two rects'
+ * CENTRE points. A full-width row's centre sits at screen centre, so from a
+ * left-hand chip it scores ~318k against ~64k for a narrow chip one row further
+ * away — and the focus engine skips straight over the wide one. Measured: a
+ * slider was reachable at 450dp wide and unreachable at 600dp+.
+ *
  * Deliberately NOT a TVFocusGuideView with `autoFocus`. That prop remembers a
  * row's last focused child and redirects to it on the next visit, which reads
  * well on paper — down then up returns you where you were — but it outranks
@@ -25,7 +33,26 @@ import { layout } from '../theme';
  * column 7 because that row had been visited before. Straight-down is the
  * property worth having, so the memory goes.
  */
-export function GridRow({ children, style }: { children: ReactNode; style?: ViewStyle }) {
+export function GridRow({
+  children,
+  style,
+  registerFirst,
+  rowFocusUp,
+  rowFocusDown,
+}: {
+  children: ReactNode;
+  style?: ViewStyle;
+  /** Applied to every cell, for a neighbour geometry cannot find. */
+  rowFocusUp?: View | null;
+  rowFocusDown?: View | null;
+  /**
+   * Hands out the first cell's node. A full-width row above (a slider, Roll)
+   * has every column "in beam", so geometry would drop focus in the middle of
+   * this row; the caller wires its nextFocusDown here instead so the hop is
+   * always to column 1.
+   */
+  registerFirst?: (node: View | null) => void;
+}) {
   const cells = Children.toArray(children).filter(isValidElement) as ReactElement<any>[];
   const refs = useRef<(View | null)[]>([]);
   // refs are null on first render, so one extra pass is needed before the
@@ -40,9 +67,12 @@ export function GridRow({ children, style }: { children: ReactNode; style?: View
           key: cell.key ?? i,
           ref: (node: View | null) => {
             refs.current[i] = node;
+            if (i === 0) registerFirst?.(node);
           },
           nextFocusLeft: refs.current[i > 0 ? i - 1 : i],
           nextFocusRight: refs.current[i < cells.length - 1 ? i + 1 : i],
+          nextFocusUp: rowFocusUp ?? undefined,
+          nextFocusDown: rowFocusDown ?? undefined,
         }),
       )}
     </View>

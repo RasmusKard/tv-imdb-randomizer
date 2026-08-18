@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { Filters, Genre, TitleKind } from '../api/types';
-import { GENRES, KINDS, testId } from '../config/filters';
+import { AXES, GENRES, KINDS, RANGE_KEYS, testId, type RangeKey } from '../config/filters';
 import { Chip, type ChipState } from '../components/Chip';
 import { GridRow } from '../components/GridRow';
+import { RangeSlider } from '../components/RangeSlider';
 import { COLS, colors, fonts, layout, s, tracking } from '../theme';
 
 type Props = {
@@ -13,6 +14,21 @@ type Props = {
 };
 
 export function Board({ filters, setFilters }: Props) {
+  // Android's FocusFinder scores by centre distance, so a full-width slider is
+  // unreachable from a left-hand chip however close it is. Every row that sits
+  // next to a slider therefore names it explicitly. See GridRow.
+  const [nodes, setNodes] = useState<Partial<Record<RangeKey, View | null>>>({});
+  // built once: a fresh callback each render would make React detach and
+  // reattach the slider's ref forever
+  const registerSlider = useMemo(() => {
+    const make = (key: RangeKey) => (node: View | null) =>
+      setNodes((prev) => (prev[key] === node ? prev : { ...prev, [key]: node }));
+    return Object.fromEntries(RANGE_KEYS.map((k) => [k, make(k)])) as Record<
+      RangeKey,
+      (node: View | null) => void
+    >;
+  }, []);
+
   const toggleKind = (kind: TitleKind) => {
     const has = filters.kinds.includes(kind);
     // never let the last one go — an empty type filter matches nothing useful
@@ -51,7 +67,7 @@ export function Board({ filters, setFilters }: Props) {
 
         <View style={styles.blocks}>
           <Block label="Type">
-            <GridRow>
+            <GridRow rowFocusDown={nodes.rating}>
               {KINDS.map((k) => (
                 <Chip
                   key={k.value}
@@ -66,9 +82,23 @@ export function Board({ filters, setFilters }: Props) {
             </GridRow>
           </Block>
 
+          {RANGE_KEYS.map((key, i) => (
+            <RangeBlock
+              key={key}
+              rangeKey={key}
+              filters={filters}
+              setFilters={setFilters}
+              registerNode={registerSlider[key]}
+              // the band row's neighbours: its own slider above, the next one below
+              sliderAbove={nodes[key]}
+              sliderBelow={nodes[RANGE_KEYS[i + 1]]}
+            />
+          ))}
+
           <Block label="Genres" aside="once = must have  ·  twice = never show">
             {[0, 1, 2].map((row) => (
-              <GridRow key={row}>
+              // only the first genre row borders a slider
+              <GridRow key={row} rowFocusUp={row === 0 ? nodes.votes : undefined}>
                 {GENRES.slice(row * COLS, row * COLS + COLS).map((genre) => {
                   const state = genreState(genre);
                   return (
@@ -97,6 +127,57 @@ export function Board({ filters, setFilters }: Props) {
         </View>
       </View>
     </View>
+  );
+}
+
+/**
+ * A slider on its own row, then its seven band presets. The bands write both
+ * ends of the slider — they are a shortcut into it, never a parallel control, so
+ * there is one source of truth and no mode to fall out of sync.
+ */
+function RangeBlock({
+  rangeKey,
+  filters,
+  setFilters,
+  registerNode,
+  sliderAbove,
+  sliderBelow,
+}: {
+  rangeKey: RangeKey;
+  filters: Filters;
+  setFilters: (f: Filters) => void;
+  registerNode: (node: View | null) => void;
+  sliderAbove?: View | null;
+  sliderBelow?: View | null;
+}) {
+  const axis = AXES[rangeKey];
+  const value = filters[rangeKey];
+  const [firstBand, setFirstBand] = useState<View | null>(null);
+
+  return (
+    <Block label={axis.label}>
+      <RangeSlider
+        axis={axis}
+        value={value}
+        onChange={(next) => setFilters({ ...filters, [rangeKey]: next })}
+        testID={testId.slider(rangeKey)}
+        nextFocusDown={firstBand}
+        registerNode={registerNode}
+      />
+      <GridRow registerFirst={setFirstBand} rowFocusUp={sliderAbove} rowFocusDown={sliderBelow}>
+        {axis.bands.map((band) => (
+          <Chip
+            key={band.name}
+            name={band.name}
+            sub={band.sub}
+            state={value[0] === band.lo && value[1] === band.hi ? 'on' : 'off'}
+            testID={testId.band(rangeKey, band.name)}
+            accessibilityLabel={`${band.name}, ${band.sub}`}
+            onPress={() => setFilters({ ...filters, [rangeKey]: [band.lo, band.hi] })}
+          />
+        ))}
+      </GridRow>
+    </Block>
   );
 }
 
@@ -165,13 +246,13 @@ const styles = StyleSheet.create({
   },
   wordmarkDot: { color: colors.sodium },
 
-  blocks: { paddingTop: s(12), gap: s(12) },
-  block: { gap: s(8) },
+  blocks: { paddingTop: s(10), gap: s(10) },
+  block: { gap: s(6) },
   blockHead: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
-    height: s(24),
+    height: s(20),
   },
   label: {
     fontFamily: fonts.mono,

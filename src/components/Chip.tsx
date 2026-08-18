@@ -20,6 +20,8 @@ type Props = {
   ref?: Ref<View>;
   nextFocusLeft?: View | null;
   nextFocusRight?: View | null;
+  nextFocusUp?: View | null;
+  nextFocusDown?: View | null;
 };
 
 /**
@@ -41,6 +43,8 @@ export function Chip({
   ref,
   nextFocusLeft,
   nextFocusRight,
+  nextFocusUp,
+  nextFocusDown,
 }: Props) {
   return (
     <Pressable
@@ -52,6 +56,8 @@ export function Chip({
       onPress={onPress}
       nextFocusLeft={nextFocusLeft}
       nextFocusRight={nextFocusRight}
+      nextFocusUp={nextFocusUp}
+      nextFocusDown={nextFocusDown}
       style={({ focused }) => [
         styles.base,
         variant === 'genre' ? styles.genre : styles.tall,
@@ -104,8 +110,8 @@ const styles = StyleSheet.create({
     borderWidth: layout.border,
     borderColor: 'transparent',
   },
-  tall: { height: s(64) },
-  genre: { height: s(56) },
+  tall: { height: s(58) },
+  genre: { height: s(52) },
 
   on: { backgroundColor: colors.sodium, borderColor: colors.sodium },
   excluded: {
