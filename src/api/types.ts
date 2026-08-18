@@ -43,8 +43,8 @@ export type Title = {
   posterUrl: string | null;
 };
 
-export type Candidates = {
-  /** Every matching tconst. Rolls pick from this locally, as the web app did. */
-  ids: string[];
-  total: number;
-};
+/**
+ * Every tconst matching a filter set. Rolls pick from it locally, as the web app
+ * did, so its length is the exact count the dock shows.
+ */
+export type Candidates = string[];

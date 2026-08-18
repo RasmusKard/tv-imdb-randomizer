@@ -4,9 +4,18 @@ import { BackHandler, Pressable, StyleSheet, Text, useTVEventHandler, View } fro
 import type { Axis } from '../config/filters';
 import { nudge } from '../lib/range';
 import { RAMP, stepMultiplier } from '../lib/ramp';
-import { colors, fonts, layout, s } from '../theme';
+import { colors, layout, mono, s } from '../theme';
 
 type Editing = null | 0 | 1;
+
+/**
+ * The four looks a handle can have. `editing` and focus decide exactly one of
+ * them, so the handle takes the answer rather than three booleans to re-derive.
+ */
+type HandleMode = 'rest' | 'lit' | 'dim' | 'live';
+
+const handleMode = (side: 0 | 1, editing: Editing, focused: boolean): HandleMode =>
+  editing === side ? 'live' : editing !== null ? 'dim' : focused ? 'lit' : 'rest';
 
 /** Android KeyEvent actions, as forwarded by useTVEventHandler. */
 const ACTION_DOWN = 0;
@@ -22,9 +31,11 @@ type Props = {
   /**
    * Board needs this node to wire the rows above and below back to the slider.
    * Must be referentially stable — a fresh callback each render makes React
-   * detach and reattach the ref forever.
+   * detach and reattach the ref forever. A useState setter qualifies.
    */
   registerNode?: (node: View | null) => void;
+  /** The node registerNode handed up. Pointing every direction at it is the trap. */
+  selfNode?: View | null;
 };
 
 const PAD_H = s(14);
@@ -56,35 +67,34 @@ const INNER_W = layout.contentWidth - PAD_H * 2;
  * Values apply as they move; there is no draft to commit. A filter is not
  * destructive and every range has an "Any" band one press below it.
  */
-export function RangeSlider({ axis, value, onChange, testID, nextFocusDown, registerNode }: Props) {
+export function RangeSlider({
+  axis,
+  value,
+  onChange,
+  testID,
+  nextFocusDown,
+  registerNode,
+  selfNode,
+}: Props) {
   const [editing, setEditing] = useState<Editing>(null);
-  const [selfNode, setSelfNode] = useState<View | null>(null);
-  const setRef = useCallback(
-    (node: View | null) => {
-      setSelfNode(node);
-      registerNode?.(node);
-    },
-    [registerNode],
-  );
-
   // the key handler and the ramp timer both fire outside React's render, so they
   // read the live value and edit state from refs rather than stale closures
   const valueRef = useRef(value);
   valueRef.current = value;
   const editingRef = useRef<Editing>(editing);
   editingRef.current = editing;
-  const ramp = useRef<{ timer: ReturnType<typeof setInterval> | null; dir: -1 | 1 } | null>(null);
+  const ramp = useRef<{ dir: -1 | 1; stop: () => void } | null>(null);
 
   const stopRamp = useCallback(() => {
-    if (ramp.current?.timer) clearInterval(ramp.current.timer);
+    ramp.current?.stop();
     ramp.current = null;
   }, []);
 
-  const nudgeOnce = useCallback(
-    (dir: -1 | 1) => {
+  const move = useCallback(
+    (dir: -1 | 1, mult: number) => {
       const side = editingRef.current;
       if (side === null) return;
-      onChange(nudge(axis, valueRef.current, side, dir, 1));
+      onChange(nudge(axis, valueRef.current, side, dir, mult));
     },
     [axis, onChange],
   );
@@ -96,23 +106,25 @@ export function RangeSlider({ axis, value, onChange, testID, nextFocusDown, regi
       if (ramp.current?.dir === dir) return;
       stopRamp();
 
-      const side = editingRef.current;
-      if (side === null) return;
-      const move = (mult: number) => onChange(nudge(axis, valueRef.current, side, dir, mult));
-
-      move(1); // a tap is exactly one notch
-      const t0 = Date.now();
-      ramp.current = { dir, timer: null };
-      const begin = setTimeout(() => {
-        if (!ramp.current) return;
-        ramp.current.timer = setInterval(
-          () => move(stepMultiplier(Date.now() - t0)),
+      move(dir, 1); // a tap is exactly one notch
+      const startedAt = Date.now();
+      let interval: ReturnType<typeof setInterval> | undefined;
+      const delay = setTimeout(() => {
+        interval = setInterval(
+          () => move(dir, stepMultiplier(Date.now() - startedAt)),
           RAMP.tickMs,
         );
       }, RAMP.firstDelayMs);
-      ramp.current.timer = begin as unknown as ReturnType<typeof setInterval>;
+
+      ramp.current = {
+        dir,
+        stop: () => {
+          clearTimeout(delay);
+          if (interval) clearInterval(interval);
+        },
+      };
     },
-    [axis, onChange, stopRamp],
+    [move, stopRamp],
   );
 
   useTVEventHandler(
@@ -131,11 +143,11 @@ export function RangeSlider({ axis, value, onChange, testID, nextFocusDown, regi
           // value once. Synthetic keyevents — adb, and therefore every
           // automated check — arrive as ACTION_UP only, so without this the
           // slider is inert under automation while working by hand.
-          if (!ramp.current) nudgeOnce(dir as -1 | 1);
+          if (!ramp.current) move(dir as -1 | 1, 1);
           stopRamp();
         }
       },
-      [nudgeOnce, startRamp, stopRamp],
+      [move, startRamp, stopRamp],
     ),
   );
 
@@ -163,13 +175,11 @@ export function RangeSlider({ axis, value, onChange, testID, nextFocusDown, regi
   const xHi = axis.pos(hi) * INNER_W;
   const { loLeft, hiLeft } = handlePositions(xLo, xHi);
   const trapped = editing !== null;
-  // pointing every direction at self is the trap; needs the node, so one extra
-  // render after mount
-  const self = selfNode;
+  const self = selfNode ?? null;
 
   return (
     <Pressable
-        ref={setRef}
+        ref={registerNode}
         testID={testID}
         accessibilityRole="button"
         // the handles are not focusable and have no other machine-readable
@@ -198,20 +208,8 @@ export function RangeSlider({ axis, value, onChange, testID, nextFocusDown, regi
                 ]}
               />
             </View>
-            <Handle
-              text={axis.fmt(lo)}
-              left={loLeft}
-              live={editing === 0}
-              dim={editing === 1}
-              lit={focused}
-            />
-            <Handle
-              text={axis.fmt(hi)}
-              left={hiLeft}
-              live={editing === 1}
-              dim={editing === 0}
-              lit={focused}
-            />
+            <Handle text={axis.fmt(lo)} left={loLeft} mode={handleMode(0, editing, focused)} />
+            <Handle text={axis.fmt(hi)} left={hiLeft} mode={handleMode(1, editing, focused)} />
           </>
         )}
     </Pressable>
@@ -232,32 +230,11 @@ function handlePositions(xLo: number, xHi: number) {
   return { loLeft, hiLeft };
 }
 
-function Handle({
-  text,
-  left,
-  live,
-  dim,
-  lit,
-}: {
-  text: string;
-  left: number;
-  /** this end is the one the arrows are moving */
-  live: boolean;
-  /** the other end, while a sequence is running */
-  dim: boolean;
-  /** the slider has focus but no sequence is running */
-  lit: boolean;
-}) {
+function Handle({ text, left, mode }: { text: string; left: number; mode: HandleMode }) {
+  const live = mode === 'live';
+
   return (
-    <View
-      style={[
-        styles.handle,
-        { left: left + PAD_H },
-        lit && !live && !dim && styles.handleLit,
-        dim && styles.handleDim,
-        live && styles.handleLive,
-      ]}
-    >
+    <View style={[styles.handle, { left: left + PAD_H }, handleState[mode]]}>
       {live ? <Text style={styles.arrow}>◀</Text> : null}
       <Text style={[styles.handleText, live && styles.handleTextLive]}>{text}</Text>
       {live ? <Text style={styles.arrow}>▶</Text> : null}
@@ -277,8 +254,8 @@ const styles = StyleSheet.create({
     borderRadius: layout.radius,
     backgroundColor: 'rgba(255,255,255,0.022)',
   },
-  sliderFocused: { backgroundColor: 'rgba(255,176,46,0.11)' },
-  sliderArmed: { backgroundColor: 'rgba(255,176,46,0.22)' },
+  sliderFocused: { backgroundColor: 'rgba(255,176,46,0.17)' },
+  sliderArmed: { backgroundColor: 'rgba(255,176,46,0.32)' },
 
   track: {
     position: 'absolute',
@@ -314,21 +291,17 @@ const styles = StyleSheet.create({
     borderRadius: layout.radius,
     backgroundColor: colors.slatHi,
   },
-  handleLit: { backgroundColor: colors.slatLit },
-  handleDim: { opacity: 0.4 },
-  handleLive: { backgroundColor: colors.sodium },
-
-  handleText: {
-    fontFamily: fonts.mono,
-    fontSize: s(21),
-    fontWeight: '700',
-    color: colors.chalk,
-  },
+  handleText: mono(21, { fontWeight: '700', color: colors.chalk }),
   handleTextLive: { color: colors.onSodium },
-  arrow: {
-    fontFamily: fonts.mono,
-    fontSize: s(18),
-    fontWeight: '700',
-    color: colors.onSodium,
-  },
+  arrow: mono(18, { fontWeight: '700', color: colors.onSodium }),
+});
+
+const handleState = StyleSheet.create({
+  rest: {},
+  /** the slider has focus but no sequence is running */
+  lit: { backgroundColor: colors.slatLit },
+  /** the other end, while a sequence is running */
+  dim: { opacity: 0.4 },
+  /** this end is the one the arrows are moving */
+  live: { backgroundColor: colors.sodium },
 });

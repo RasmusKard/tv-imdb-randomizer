@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Ref } from 'react';
 
-import { colors, fonts, layout, s, tracking } from '../theme';
+import { colors, layout, mono, s } from '../theme';
 
 export type ChipState = 'off' | 'on' | 'excluded';
 
@@ -9,11 +9,9 @@ type Props = {
   name: string;
   /** Second line: a band's range, a kind's qualifier. Genres have none. */
   sub?: string;
-  state?: ChipState;
+  state: ChipState;
   /** Genre chips are shorter and single-line, so 21 of them fit three rows. */
   variant?: 'default' | 'genre';
-  /** How many of the seven columns this cell occupies. */
-  span?: number;
   testID: string;
   accessibilityLabel: string;
   onPress: () => void;
@@ -34,9 +32,8 @@ type Props = {
 export function Chip({
   name,
   sub,
-  state = 'off',
+  state,
   variant = 'default',
-  span = 1,
   testID,
   accessibilityLabel,
   onPress,
@@ -61,9 +58,7 @@ export function Chip({
       style={({ focused }) => [
         styles.base,
         variant === 'genre' ? styles.genre : styles.tall,
-        { width: layout.span(span) },
-        state === 'on' && styles.on,
-        state === 'excluded' && styles.excluded,
+        box[state],
         focused && styles.focused,
       ]}
     >
@@ -74,8 +69,7 @@ export function Chip({
             style={[
               styles.name,
               variant === 'genre' && styles.nameGenre,
-              state === 'on' && styles.nameOn,
-              state === 'excluded' && styles.nameExcluded,
+              ink[state],
               focused && state === 'off' && styles.nameFocused,
             ]}
           >
@@ -84,11 +78,7 @@ export function Chip({
           {sub ? (
             <Text
               numberOfLines={1}
-              style={[
-                styles.sub,
-                state === 'on' && styles.subOn,
-                focused && state === 'off' && styles.subFocused,
-              ]}
+              style={[styles.sub, subInk[state], focused && state === 'off' && styles.subFocused]}
             >
               {sub}
             </Text>
@@ -101,6 +91,7 @@ export function Chip({
 
 const styles = StyleSheet.create({
   base: {
+    width: layout.cell,
     alignItems: 'center',
     justifyContent: 'center',
     gap: s(3),
@@ -112,12 +103,6 @@ const styles = StyleSheet.create({
   },
   tall: { height: s(58) },
   genre: { height: s(52) },
-
-  on: { backgroundColor: colors.sodium, borderColor: colors.sodium },
-  excluded: {
-    backgroundColor: colors.boardLo,
-    borderColor: colors.cold,
-  },
   focused: {
     borderColor: colors.sodium,
     transform: [{ scale: 1.05 }],
@@ -125,25 +110,26 @@ const styles = StyleSheet.create({
     zIndex: 3,
   },
 
-  name: {
-    fontFamily: fonts.mono,
-    fontSize: s(18),
-    letterSpacing: tracking(s(18), 0.09),
-    textTransform: 'uppercase',
-    color: colors.dim,
-  },
+  name: mono(18, { em: 0.09, caps: true, color: colors.dim }),
+  /** Only the size changes: the tracking stays the one computed against 18. */
   nameGenre: { fontSize: s(21) },
-  nameOn: { color: colors.onSodium, fontWeight: '700' },
-  nameExcluded: { color: colors.cold, textDecorationLine: 'line-through' },
   nameFocused: { color: colors.chalk },
 
-  sub: {
-    fontFamily: fonts.mono,
-    fontSize: s(14),
-    letterSpacing: tracking(s(14), 0.05),
-    textTransform: 'uppercase',
-    color: colors.dimmer,
-  },
-  subOn: { color: colors.onSodiumDim },
+  sub: mono(14, { em: 0.05, caps: true, color: colors.dimmer }),
   subFocused: { color: colors.dim },
 });
+
+/** The three states, keyed by the state, so the render path is a lookup. */
+const box = StyleSheet.create({
+  off: {},
+  on: { backgroundColor: colors.sodium, borderColor: colors.sodium },
+  excluded: { backgroundColor: colors.boardLo, borderColor: colors.cold },
+});
+
+const ink = StyleSheet.create({
+  off: {},
+  on: { color: colors.onSodium, fontWeight: '700' },
+  excluded: { color: colors.cold, textDecorationLine: 'line-through' },
+});
+
+const subInk = StyleSheet.create({ off: {}, on: { color: colors.onSodiumDim }, excluded: {} });

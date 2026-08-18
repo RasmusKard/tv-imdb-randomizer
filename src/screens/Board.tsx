@@ -1,15 +1,15 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { Candidates, Filters, Genre, TitleKind } from '../api/types';
 import { estimate } from '../lib/estimate';
 import { ActionButton } from '../components/ActionButton';
 import { Flaps } from '../components/Flaps';
-import { AXES, GENRES, KINDS, RANGE_KEYS, testId, type RangeKey } from '../config/filters';
+import { AXES, GENRES, KINDS, testId, type RangeKey } from '../config/filters';
 import { Chip, type ChipState } from '../components/Chip';
 import { GridRow } from '../components/GridRow';
 import { RangeSlider } from '../components/RangeSlider';
-import { COLS, colors, fonts, layout, s, tracking } from '../theme';
+import { COLS, colors, display, layout, mono, s, screen } from '../theme';
 
 type Props = {
   filters: Filters;
@@ -19,27 +19,22 @@ type Props = {
   /** Fired when Roll takes focus, not when it is pressed. */
   onPrefetch: () => void;
   onRoll: () => void;
+  /** True when arriving back from a verdict, so Roll takes focus on mount. */
+  focusRoll?: boolean;
 };
 
-export function Board({ filters, setFilters, candidates, onPrefetch, onRoll }: Props) {
+export function Board({ filters, setFilters, candidates, onPrefetch, onRoll, focusRoll }: Props) {
   // Android's FocusFinder scores by centre distance, so a full-width slider is
   // unreachable from a left-hand chip however close it is. Every row that sits
   // next to a slider therefore names it explicitly. See GridRow.
-  const [nodes, setNodes] = useState<Partial<Record<RangeKey | 'roll', View | null>>>({});
-  const registerRoll = useCallback(
-    (node: View | null) => setNodes((prev) => (prev.roll === node ? prev : { ...prev, roll: node })),
-    [],
-  );
-  // built once: a fresh callback each render would make React detach and
-  // reattach the slider's ref forever
-  const registerSlider = useMemo(() => {
-    const make = (key: RangeKey) => (node: View | null) =>
-      setNodes((prev) => (prev[key] === node ? prev : { ...prev, [key]: node }));
-    return Object.fromEntries(RANGE_KEYS.map((k) => [k, make(k)])) as Record<
-      RangeKey,
-      (node: View | null) => void
-    >;
-  }, []);
+  //
+  // Plain useState per node: its setter is already referentially stable, so it
+  // can be handed straight to a ref without the callback changing identity every
+  // render and making React detach and reattach forever.
+  const [ratingNode, setRatingNode] = useState<View | null>(null);
+  const [yearNode, setYearNode] = useState<View | null>(null);
+  const [votesNode, setVotesNode] = useState<View | null>(null);
+  const [rollNode, setRollNode] = useState<View | null>(null);
 
   const toggleKind = (kind: TitleKind) => {
     const has = filters.kinds.includes(kind);
@@ -66,10 +61,10 @@ export function Board({ filters, setFilters, candidates, onPrefetch, onRoll }: P
   };
 
   return (
-    <View style={styles.root}>
+    <View style={screen.root}>
       <ColumnRules />
 
-      <View style={styles.safe}>
+      <View style={screen.safe}>
         <View style={styles.head}>
           <Text style={styles.wordmark}>
             what<Text style={styles.wordmarkDot}>.</Text>watch
@@ -79,7 +74,7 @@ export function Board({ filters, setFilters, candidates, onPrefetch, onRoll }: P
 
         <View style={styles.blocks}>
           <Block label="Type">
-            <GridRow rowFocusDown={nodes.rating}>
+            <GridRow rowFocusDown={ratingNode}>
               {KINDS.map((k) => (
                 <Chip
                   key={k.value}
@@ -94,28 +89,41 @@ export function Board({ filters, setFilters, candidates, onPrefetch, onRoll }: P
             </GridRow>
           </Block>
 
-          {RANGE_KEYS.map((key, i) => (
-            <RangeBlock
-              key={key}
-              rangeKey={key}
-              filters={filters}
-              setFilters={setFilters}
-              registerNode={registerSlider[key]}
-              // the band row's neighbours: its own slider above, the next one below
-              sliderAbove={nodes[key]}
-              sliderBelow={nodes[RANGE_KEYS[i + 1]]}
-            />
-          ))}
+          {/* three ranges, named rather than mapped, so each can point at the next */}
+          <RangeBlock
+            rangeKey="rating"
+            filters={filters}
+            setFilters={setFilters}
+            registerNode={setRatingNode}
+            sliderNode={ratingNode}
+            sliderBelow={yearNode}
+          />
+          <RangeBlock
+            rangeKey="year"
+            filters={filters}
+            setFilters={setFilters}
+            registerNode={setYearNode}
+            sliderNode={yearNode}
+            sliderBelow={votesNode}
+          />
+          <RangeBlock
+            rangeKey="votes"
+            filters={filters}
+            setFilters={setFilters}
+            registerNode={setVotesNode}
+            sliderNode={votesNode}
+            sliderBelow={null}
+          />
 
           <Block label="Genres" aside="once = must have  ·  twice = never show">
             {[0, 1, 2].map((row) => (
               // only the first genre row borders a slider
               <GridRow
                 key={row}
-                rowFocusUp={row === 0 ? nodes.votes : undefined}
+                rowFocusUp={row === 0 ? votesNode : undefined}
                 // Roll spans columns 5-7, so its centre is far from column 1 and
                 // geometry never finds it from the left of the last genre row
-                rowFocusDown={row === 2 ? nodes.roll : undefined}
+                rowFocusDown={row === 2 ? rollNode : undefined}
               >
                 {GENRES.slice(row * COLS, row * COLS + COLS).map((genre) => {
                   const state = genreState(genre);
@@ -149,7 +157,8 @@ export function Board({ filters, setFilters, candidates, onPrefetch, onRoll }: P
           candidates={candidates}
           onPrefetch={onPrefetch}
           onRoll={onRoll}
-          registerRoll={registerRoll}
+          registerRoll={setRollNode}
+          focusRoll={focusRoll}
         />
       </View>
     </View>
@@ -171,15 +180,17 @@ function Dock({
   onPrefetch,
   onRoll,
   registerRoll,
+  focusRoll,
 }: {
   filters: Filters;
   candidates: Candidates | null;
   onPrefetch: () => void;
   onRoll: () => void;
   registerRoll: (node: View | null) => void;
+  focusRoll?: boolean;
 }) {
   const guess = estimate(filters);
-  const total = candidates ? candidates.total : guess;
+  const total = candidates ? candidates.length : guess;
   const exact = candidates !== null;
   const empty = exact && total === 0;
 
@@ -203,6 +214,7 @@ function Dock({
         label="Roll"
         testID={testId.roll}
         ref={registerRoll}
+        hasTVPreferredFocus={focusRoll}
         onFocus={onPrefetch}
         onPress={() => {
           if (!empty) onRoll();
@@ -223,15 +235,17 @@ function RangeBlock({
   filters,
   setFilters,
   registerNode,
-  sliderAbove,
+  sliderNode,
   sliderBelow,
 }: {
   rangeKey: RangeKey;
   filters: Filters;
   setFilters: (f: Filters) => void;
   registerNode: (node: View | null) => void;
-  sliderAbove?: View | null;
-  sliderBelow?: View | null;
+  /** This block's own slider, which its band row points back up at. */
+  sliderNode: View | null;
+  /** The next range's slider, which its band row points down at. */
+  sliderBelow: View | null;
 }) {
   const axis = AXES[rangeKey];
   const value = filters[rangeKey];
@@ -246,8 +260,9 @@ function RangeBlock({
         testID={testId.slider(rangeKey)}
         nextFocusDown={firstBand}
         registerNode={registerNode}
+        selfNode={sliderNode}
       />
-      <GridRow registerFirst={setFirstBand} rowFocusUp={sliderAbove} rowFocusDown={sliderBelow}>
+      <GridRow registerFirst={setFirstBand} rowFocusUp={sliderNode} rowFocusDown={sliderBelow}>
         {axis.bands.map((band) => (
           <Chip
             key={band.name}
@@ -291,12 +306,6 @@ function ColumnRules() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.board },
-  safe: {
-    flex: 1,
-    paddingHorizontal: layout.overscan,
-    paddingVertical: layout.overscan,
-  },
   rules: {
     position: 'absolute',
     top: 0,
@@ -320,13 +329,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.slatHi,
   },
-  wordmark: {
-    fontFamily: fonts.display,
-    fontSize: s(32),
-    fontWeight: '800',
-    letterSpacing: tracking(s(32), -0.03),
-    color: colors.chalk,
-  },
+  wordmark: display(32, { em: -0.03, fontWeight: '800', color: colors.chalk }),
   wordmarkDot: { color: colors.sodium },
 
   blocks: { paddingTop: s(10), gap: s(10) },
@@ -347,27 +350,8 @@ const styles = StyleSheet.create({
     gap: layout.gap,
   },
   counter: { width: layout.span(3), gap: s(5) },
-  dockLabel: {
-    fontFamily: fonts.mono,
-    fontSize: s(15),
-    letterSpacing: tracking(s(15), 0.2),
-    textTransform: 'uppercase',
-    color: colors.dim,
-  },
-  warn: {
-    width: layout.span(1),
-    fontFamily: fonts.mono,
-    fontSize: s(16),
-    letterSpacing: tracking(s(16), 0.1),
-    textTransform: 'uppercase',
-    color: colors.cold,
-  },
+  dockLabel: mono(15, { em: 0.2, caps: true, color: colors.dim }),
+  warn: mono(16, { em: 0.1, caps: true, color: colors.cold, width: layout.cell }),
   roll: { width: layout.span(3) },
-  label: {
-    fontFamily: fonts.mono,
-    fontSize: s(18),
-    letterSpacing: tracking(s(18), 0.2),
-    textTransform: 'uppercase',
-    color: colors.dim,
-  },
+  label: mono(18, { em: 0.2, caps: true, color: colors.dim }),
 });

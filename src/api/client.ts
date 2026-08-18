@@ -41,14 +41,13 @@ function matches(t: Title, f: Filters): boolean {
  * Candidate ids for a filter set, fetched once per "I'm done fiddling" and
  * rolled from locally.
  *
- * TODO: wire to what-watch-postgre. `total` is the exact count the dock shows.
+ * TODO: wire to what-watch-postgre. ids.length is the exact count the dock shows.
  */
 export async function fetchCandidates(f: Filters): Promise<Candidates> {
   await sleep(LATENCY_MS);
-  const ids = FIXTURES.filter((t) => matches(t, f) && !f.excludeIds.includes(t.tconst)).map(
-    (t) => t.tconst,
-  );
-  return { ids, total: ids.length };
+  const seen = new Set(f.excludeIds);
+  const ids = FIXTURES.filter((t) => matches(t, f) && !seen.has(t.tconst)).map((t) => t.tconst);
+  return ids;
 }
 
 /**

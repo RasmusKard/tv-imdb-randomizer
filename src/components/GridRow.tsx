@@ -1,6 +1,6 @@
 import { Children, cloneElement, isValidElement, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import { StyleSheet, View, type ViewStyle } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { layout } from '../theme';
 
@@ -33,15 +33,22 @@ import { layout } from '../theme';
  * column 7 because that row had been visited before. Straight-down is the
  * property worth having, so the memory goes.
  */
+/** What GridRow injects into each cell. Chip and anything else in a row must accept these. */
+type FocusableCell = {
+  ref?: (node: View | null) => void;
+  nextFocusLeft?: View | null;
+  nextFocusRight?: View | null;
+  nextFocusUp?: View | null;
+  nextFocusDown?: View | null;
+};
+
 export function GridRow({
   children,
-  style,
   registerFirst,
   rowFocusUp,
   rowFocusDown,
 }: {
   children: ReactNode;
-  style?: ViewStyle;
   /** Applied to every cell, for a neighbour geometry cannot find. */
   rowFocusUp?: View | null;
   rowFocusDown?: View | null;
@@ -53,7 +60,7 @@ export function GridRow({
    */
   registerFirst?: (node: View | null) => void;
 }) {
-  const cells = Children.toArray(children).filter(isValidElement) as ReactElement<any>[];
+  const cells = Children.toArray(children).filter(isValidElement) as ReactElement<FocusableCell>[];
   const refs = useRef<(View | null)[]>([]);
   // refs are null on first render, so one extra pass is needed before the
   // neighbour wiring can point at real nodes
@@ -61,7 +68,7 @@ export function GridRow({
   useLayoutEffect(() => wire(true), []);
 
   return (
-    <View style={[styles.row, style]}>
+    <View style={styles.row}>
       {cells.map((cell, i) =>
         cloneElement(cell, {
           key: cell.key ?? i,

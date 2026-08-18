@@ -17,10 +17,9 @@ export const KINDS: { value: TitleKind; name: string; sub: string }[] = [
 export type RangeKey = 'rating' | 'year' | 'votes';
 
 /** A named preset that writes both ends of its slider. Exactly 7 per row. */
-export type Band = { name: string; sub: string; lo: number; hi: number };
+type Band = { name: string; sub: string; lo: number; hi: number };
 
 export type Axis = {
-  key: RangeKey;
   label: string;
   min: number;
   max: number;
@@ -50,7 +49,6 @@ const fmtVotes = (v: number) =>
 
 export const AXES: Record<RangeKey, Axis> = {
   rating: {
-    key: 'rating',
     label: 'Rating',
     min: 0,
     max: 10,
@@ -68,7 +66,6 @@ export const AXES: Record<RangeKey, Axis> = {
     ],
   },
   year: {
-    key: 'year',
     label: 'Year',
     min: 1894,
     max: THIS_YEAR,
@@ -86,7 +83,6 @@ export const AXES: Record<RangeKey, Axis> = {
     ],
   },
   votes: {
-    key: 'votes',
     label: 'Votes',
     min: 0,
     max: VOTES_MAX,
@@ -108,6 +104,8 @@ export const AXES: Record<RangeKey, Axis> = {
 
 export const RANGE_KEYS: RangeKey[] = ['rating', 'year', 'votes'];
 
+const slug = (v: string) => v.toLowerCase().replace(/\s+/g, '-');
+
 /** Stable ids so agent-device can assert which cell has focus. */
 export const testId = {
   kind: (k: TitleKind) => `chip-kind-${k}`,
@@ -120,4 +118,3 @@ export const testId = {
   receipt: 'btn-receipt',
 };
 
-export const slug = (v: string) => v.toLowerCase().replace(/\s+/g, '-');

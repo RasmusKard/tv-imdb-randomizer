@@ -1,4 +1,5 @@
-import { Dimensions, Platform } from 'react-native';
+import { Dimensions, Platform, StyleSheet } from 'react-native';
+import type { TextStyle } from 'react-native';
 
 /**
  * The design is drawn at 1920x1080. A TV reports dp, not pixels — a 1080p set is
@@ -8,7 +9,7 @@ import { Dimensions, Platform } from 'react-native';
  * The scale is read once at module load rather than through a hook: a TV never
  * rotates and never resizes, so styles can live in module-scope StyleSheet.create.
  */
-export const DESIGN_WIDTH = 1920;
+const DESIGN_WIDTH = 1920;
 
 const windowWidth = Dimensions.get('window').width;
 
@@ -28,6 +29,8 @@ export const colors = {
   slatLit: '#3B4270',
   /** amber — primary, focus, editing, include */
   sodium: '#FFB02E',
+  /** the same amber at rest, so taking focus is a visible step up in brightness */
+  sodiumDim: '#C98622',
   /** ink on top of sodium */
   onSodium: '#171200',
   /** dimmed ink on top of sodium, for a chip's second line */
@@ -58,6 +61,7 @@ export const COLS = 7;
 const OVERSCAN_FRACTION = 0.05;
 const gap = s(12);
 const contentWidth = windowWidth * (1 - OVERSCAN_FRACTION * 2);
+const cell = (contentWidth - (COLS - 1) * gap) / COLS;
 
 export const layout = {
   /** 5% on each edge, so nothing lands on a bezel. */
@@ -71,9 +75,9 @@ export const layout = {
    * them in columns 1 and 2 rather than stretching them across the screen,
    * otherwise "down is straight down" stops being true.
    */
-  cell: (contentWidth - (COLS - 1) * gap) / COLS,
+  cell,
   /** Width of a cell spanning n columns, gaps included. */
-  span: (n: number) => (contentWidth - (COLS - 1) * gap) / COLS * n + gap * (n - 1),
+  span: (n: number) => cell * n + gap * (n - 1),
 } as const;
 
 /**
@@ -81,3 +85,41 @@ export const layout = {
  * wide enough to read at three metres.
  */
 export const tracking = (fontSize: number, em: number) => fontSize * em;
+
+type TextRecipe = Omit<TextStyle, 'fontFamily' | 'fontSize' | 'letterSpacing'> & {
+  /** Tracking in em, converted to dp against this size. */
+  em?: number;
+  /** Every mono label and most display text is uppercase; a few numbers are not. */
+  caps?: boolean;
+};
+
+/**
+ * Every text style in the app is the same three or four keys: a face, a size from
+ * the design space, that size's tracking, usually uppercase. `mono` and `display`
+ * state them once, so a size and the tracking derived from it cannot drift apart.
+ */
+const face =
+  (fontFamily: TextStyle['fontFamily']) =>
+  (size: number, { em, caps, ...rest }: TextRecipe = {}): TextStyle => ({
+    fontFamily,
+    fontSize: s(size),
+    ...(em !== undefined && { letterSpacing: tracking(s(size), em) }),
+    ...(caps && { textTransform: 'uppercase' }),
+    ...rest,
+  });
+
+export const mono = face(fonts.mono);
+export const display = face(fonts.display);
+
+/**
+ * Every screen sits on the board ground and inside the overscan inset, so
+ * "nothing lands on a bezel" is stated once rather than copied per screen.
+ */
+export const screen = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.board },
+  safe: {
+    flex: 1,
+    paddingHorizontal: layout.overscan,
+    paddingVertical: layout.overscan,
+  },
+});

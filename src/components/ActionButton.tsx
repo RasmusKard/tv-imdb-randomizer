@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import type { StyleProp, ViewStyle } from 'react-native';
 import type { Ref } from 'react';
 
-import { colors, fonts, layout, s, tracking } from '../theme';
+import { colors, display, layout, s } from '../theme';
 
 type Props = {
   label: string;
@@ -12,12 +13,8 @@ type Props = {
   /** Roll fires its prefetch from here: one request per "I'm done fiddling". */
   onFocus?: () => void;
   hasTVPreferredFocus?: boolean;
-  style?: object;
+  style?: StyleProp<ViewStyle>;
   ref?: Ref<View>;
-  nextFocusLeft?: View | null;
-  nextFocusRight?: View | null;
-  nextFocusUp?: View | null;
-  nextFocusDown?: View | null;
 };
 
 export function ActionButton({
@@ -29,7 +26,6 @@ export function ActionButton({
   hasTVPreferredFocus,
   style,
   ref,
-  ...focusProps
 }: Props) {
   return (
     <Pressable
@@ -40,7 +36,6 @@ export function ActionButton({
       onPress={onPress}
       onFocus={onFocus}
       hasTVPreferredFocus={hasTVPreferredFocus}
-      {...focusProps}
       style={({ focused }) => [
         styles.base,
         variant === 'solid' ? styles.solid : styles.ghost,
@@ -70,17 +65,18 @@ const styles = StyleSheet.create({
     borderRadius: layout.radius,
     borderWidth: layout.border,
   },
-  solid: { backgroundColor: colors.sodium, borderColor: colors.sodium },
+  // a solid button at rest sits a step darker: on TV, scale alone is not a
+  // readable focus signal on a large filled shape
+  solid: { backgroundColor: colors.sodiumDim, borderColor: colors.sodiumDim },
   ghost: { backgroundColor: 'transparent', borderColor: colors.sodium },
-  solidFocused: { transform: [{ scale: 1.03 }], elevation: 12 },
-  ghostFocused: { backgroundColor: colors.sodium, transform: [{ scale: 1.03 }], elevation: 12 },
-  label: {
-    fontFamily: fonts.display,
-    fontSize: s(28),
-    fontWeight: '800',
-    letterSpacing: tracking(s(28), 0.12),
-    textTransform: 'uppercase',
+  solidFocused: {
+    backgroundColor: colors.sodium,
+    borderColor: colors.chalk,
+    transform: [{ scale: 1.03 }],
+    elevation: 12,
   },
+  ghostFocused: { backgroundColor: colors.sodium, transform: [{ scale: 1.03 }], elevation: 12 },
+  label: display(28, { em: 0.12, caps: true, fontWeight: '800' }),
   labelSolid: { color: colors.onSodium },
   labelGhost: { color: colors.sodium },
 });
