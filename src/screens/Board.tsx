@@ -1,7 +1,10 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import type { Filters, Genre, TitleKind } from '../api/types';
+import type { Candidates, Filters, Genre, TitleKind } from '../api/types';
+import { estimate } from '../lib/estimate';
+import { ActionButton } from '../components/ActionButton';
+import { Flaps } from '../components/Flaps';
 import { AXES, GENRES, KINDS, RANGE_KEYS, testId, type RangeKey } from '../config/filters';
 import { Chip, type ChipState } from '../components/Chip';
 import { GridRow } from '../components/GridRow';
@@ -11,13 +14,22 @@ import { COLS, colors, fonts, layout, s, tracking } from '../theme';
 type Props = {
   filters: Filters;
   setFilters: (f: Filters) => void;
+  /** Non-null once the candidate list has been fetched for these filters. */
+  candidates: Candidates | null;
+  /** Fired when Roll takes focus, not when it is pressed. */
+  onPrefetch: () => void;
+  onRoll: () => void;
 };
 
-export function Board({ filters, setFilters }: Props) {
+export function Board({ filters, setFilters, candidates, onPrefetch, onRoll }: Props) {
   // Android's FocusFinder scores by centre distance, so a full-width slider is
   // unreachable from a left-hand chip however close it is. Every row that sits
   // next to a slider therefore names it explicitly. See GridRow.
-  const [nodes, setNodes] = useState<Partial<Record<RangeKey, View | null>>>({});
+  const [nodes, setNodes] = useState<Partial<Record<RangeKey | 'roll', View | null>>>({});
+  const registerRoll = useCallback(
+    (node: View | null) => setNodes((prev) => (prev.roll === node ? prev : { ...prev, roll: node })),
+    [],
+  );
   // built once: a fresh callback each render would make React detach and
   // reattach the slider's ref forever
   const registerSlider = useMemo(() => {
@@ -98,7 +110,13 @@ export function Board({ filters, setFilters }: Props) {
           <Block label="Genres" aside="once = must have  ·  twice = never show">
             {[0, 1, 2].map((row) => (
               // only the first genre row borders a slider
-              <GridRow key={row} rowFocusUp={row === 0 ? nodes.votes : undefined}>
+              <GridRow
+                key={row}
+                rowFocusUp={row === 0 ? nodes.votes : undefined}
+                // Roll spans columns 5-7, so its centre is far from column 1 and
+                // geometry never finds it from the left of the last genre row
+                rowFocusDown={row === 2 ? nodes.roll : undefined}
+              >
                 {GENRES.slice(row * COLS, row * COLS + COLS).map((genre) => {
                   const state = genreState(genre);
                   return (
@@ -125,7 +143,72 @@ export function Board({ filters, setFilters }: Props) {
             ))}
           </Block>
         </View>
+
+        <Dock
+          filters={filters}
+          candidates={candidates}
+          onPrefetch={onPrefetch}
+          onRoll={onRoll}
+          registerRoll={registerRoll}
+        />
       </View>
+    </View>
+  );
+}
+
+/**
+ * Counter, warning, Roll — on the same seven columns as everything above.
+ *
+ * Two tiers of number. While filtering, the free local estimate: dim, prefixed
+ * with an approximately-equals, updated on every keypress, because a COUNT(*)
+ * per keypress is not affordable. Once Roll takes focus the real query runs and
+ * the exact count settles in — one request per "I'm done fiddling", and it makes
+ * the roll itself instant.
+ */
+function Dock({
+  filters,
+  candidates,
+  onPrefetch,
+  onRoll,
+  registerRoll,
+}: {
+  filters: Filters;
+  candidates: Candidates | null;
+  onPrefetch: () => void;
+  onRoll: () => void;
+  registerRoll: (node: View | null) => void;
+}) {
+  const guess = estimate(filters);
+  const total = candidates ? candidates.total : guess;
+  const exact = candidates !== null;
+  const empty = exact && total === 0;
+
+  return (
+    <View style={styles.dock}>
+      <View
+        style={styles.counter}
+        testID="dock-count"
+        accessible
+        accessibilityLabel={
+          exact ? `${total} titles match` : `roughly ${total} titles`
+        }
+      >
+        <Text style={styles.dockLabel}>{exact ? 'Titles match' : 'Roughly this many'}</Text>
+        <Flaps value={total} exact={exact} />
+      </View>
+      <Text style={styles.warn} numberOfLines={2}>
+        {empty ? 'Nothing in here — widen a range' : total < 40 ? 'Very thin' : ''}
+      </Text>
+      <ActionButton
+        label="Roll"
+        testID={testId.roll}
+        ref={registerRoll}
+        onFocus={onPrefetch}
+        onPress={() => {
+          if (!empty) onRoll();
+        }}
+        style={styles.roll}
+      />
     </View>
   );
 }
@@ -254,6 +337,32 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     height: s(20),
   },
+  dock: {
+    marginTop: 'auto',
+    paddingTop: s(10),
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.slatHi,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: layout.gap,
+  },
+  counter: { width: layout.span(3), gap: s(5) },
+  dockLabel: {
+    fontFamily: fonts.mono,
+    fontSize: s(15),
+    letterSpacing: tracking(s(15), 0.2),
+    textTransform: 'uppercase',
+    color: colors.dim,
+  },
+  warn: {
+    width: layout.span(1),
+    fontFamily: fonts.mono,
+    fontSize: s(16),
+    letterSpacing: tracking(s(16), 0.1),
+    textTransform: 'uppercase',
+    color: colors.cold,
+  },
+  roll: { width: layout.span(3) },
   label: {
     fontFamily: fonts.mono,
     fontSize: s(18),
