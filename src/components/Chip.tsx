@@ -20,6 +20,15 @@ type Props = {
   nextFocusRight?: View | null;
   nextFocusUp?: View | null;
   nextFocusDown?: View | null;
+  /**
+   * True exactly when this is the most recently pressed control board-wide.
+   * `hasTVPreferredFocus` only calls Android's `requestFocus` on a false ->
+   * true transition (see ReactViewManager.kt), so this is a real, working
+   * "move focus to whatever was just touched" — `Pressable.focus()` is not:
+   * it is wired to a native command gated behind `enableImperativeFocus`,
+   * which defaults off and isn't enabled in this app, so it silently no-ops.
+   */
+  hasTVPreferredFocus?: boolean;
 };
 
 /**
@@ -42,6 +51,7 @@ export function Chip({
   nextFocusRight,
   nextFocusUp,
   nextFocusDown,
+  hasTVPreferredFocus,
 }: Props) {
   return (
     <Pressable
@@ -51,6 +61,7 @@ export function Chip({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected: state === 'on' }}
       onPress={onPress}
+      hasTVPreferredFocus={hasTVPreferredFocus}
       nextFocusLeft={nextFocusLeft}
       nextFocusRight={nextFocusRight}
       nextFocusUp={nextFocusUp}

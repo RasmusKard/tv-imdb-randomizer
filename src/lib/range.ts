@@ -1,9 +1,10 @@
 import type { Axis } from '../config/filters';
 
-/** One press on the log-scaled votes axis moves this share of the track. */
-const LOG_STEP = 0.03;
-
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+// binary float noise (0.1 steps land on 5.1000000000000005) would otherwise
+// leak into the displayed value and into every equality check downstream
+const round = (v: number) => Math.round(v * 1e6) / 1e6;
 
 /**
  * Move one end of a range by `mult` steps in `dir`, then keep the pair legal.
@@ -20,23 +21,13 @@ export function nudge(
 ): [number, number] {
   const next: [number, number] = [value[0], value[1]];
 
-  if (axis.step !== null) {
-    const stepped = next[side] + dir * axis.step * mult;
-    next[side] = Math.round(stepped / axis.step) * axis.step;
-  } else {
-    // log axis: step by a share of the track, not by a count of votes
-    const p = clamp(axis.pos(next[side]) + dir * LOG_STEP * mult, 0, 1);
-    const raw = axis.unpos!(p);
-    // round to something a person would say out loud
-    next[side] = raw > 2000 ? Math.round(raw / 500) * 500 : Math.round(raw);
-  }
-
+  const stepped = next[side] + dir * axis.step * mult;
+  next[side] = round(Math.round(stepped / axis.step) * axis.step);
   next[side] = clamp(next[side], axis.min, axis.max);
 
   // the ends may touch no closer than one step
-  const gap = axis.step ?? 1;
-  if (side === 0) next[0] = Math.min(next[0], next[1] - gap);
-  else next[1] = Math.max(next[1], next[0] + gap);
+  if (side === 0) next[0] = Math.min(next[0], round(next[1] - axis.step));
+  else next[1] = Math.max(next[1], round(next[0] + axis.step));
 
   return next;
 }

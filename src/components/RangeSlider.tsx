@@ -1,12 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { BackHandler, Pressable, StyleSheet, Text, useTVEventHandler, View } from 'react-native';
 
 import type { Axis } from '../config/filters';
 import { nudge } from '../lib/range';
-import { RAMP, stepMultiplier } from '../lib/ramp';
 import { colors, layout, mono, s } from '../theme';
 
-type Editing = null | 0 | 1;
+export type Editing = null | 0 | 1;
 
 /**
  * The four looks a handle can have. `editing` and focus decide exactly one of
@@ -20,6 +19,11 @@ const handleMode = (side: 0 | 1, editing: Editing, focused: boolean): HandleMode
 /** Android KeyEvent actions, as forwarded by useTVEventHandler. */
 const ACTION_DOWN = 0;
 const ACTION_UP = 1;
+
+/** Dead zone after the first step, so a tap stays exactly one notch. */
+const REPEAT_DELAY_MS = 380;
+/** Constant repeat interval once the dead zone has passed — no acceleration. */
+const REPEAT_TICK_MS = 100;
 
 type Props = {
   axis: Axis;
@@ -36,11 +40,27 @@ type Props = {
   registerNode?: (node: View | null) => void;
   /** The node registerNode handed up. Pointing every direction at it is the trap. */
   selfNode?: View | null;
+  /**
+   * Controlled rather than local: only one slider on the board may be armed at
+   * a time. A bare touch or pointer-mode IR remote can activate a different
+   * control directly, bypassing the D-pad focus trap below entirely — if this
+   * component owned "armed" as its own state, that other control's press
+   * would land while this one still thought it had the keys, and both would
+   * answer left/right at once. The parent is the one place that already knows
+   * about every slider on the board, so it is the one place that can enforce
+   * "at most one" and close this slider out when something else wins.
+   */
+  editing: Editing;
+  onEditingChange: (editing: Editing) => void;
+  /** True exactly when this slider was the most recently pressed control board-wide. */
+  hasTVPreferredFocus?: boolean;
 };
 
 const PAD_H = s(14);
 const HANDLE_W = s(104);
 const INNER_W = layout.contentWidth - PAD_H * 2;
+/** Space a handle's own left edge can occupy, so it reaches both track ends flush. */
+const TRAVEL = INNER_W - HANDLE_W;
 
 /**
  * A dual-range slider that is ONE focus cell.
@@ -75,48 +95,54 @@ export function RangeSlider({
   nextFocusDown,
   registerNode,
   selfNode,
+  editing,
+  onEditingChange,
+  hasTVPreferredFocus,
 }: Props) {
-  const [editing, setEditing] = useState<Editing>(null);
-  // the key handler and the ramp timer both fire outside React's render, so they
-  // read the live value and edit state from refs rather than stale closures
-  const valueRef = useRef(value);
-  valueRef.current = value;
+  // the key handler and the repeat timer both fire outside React's render, so
+  // they read the live value and edit state from refs rather than stale closures.
+  // While armed, this ref is the source of truth, advanced synchronously inside
+  // move() itself — not resynced from the `value` prop until editing ends. A
+  // repeat tick fires every REPEAT_TICK_MS; a round trip through onChange ->
+  // App state -> re-render can take longer than that under load, and syncing
+  // from the (by-then-stale) prop on every render made each tick nudge from
+  // the same starting point as the last, so holding moved once and stalled.
   const editingRef = useRef<Editing>(editing);
   editingRef.current = editing;
-  const ramp = useRef<{ dir: -1 | 1; stop: () => void } | null>(null);
+  const valueRef = useRef(value);
+  if (editing === null) valueRef.current = value;
+  const repeat = useRef<{ dir: -1 | 1; stop: () => void } | null>(null);
 
-  const stopRamp = useCallback(() => {
-    ramp.current?.stop();
-    ramp.current = null;
+  const stopRepeat = useCallback(() => {
+    repeat.current?.stop();
+    repeat.current = null;
   }, []);
 
   const move = useCallback(
-    (dir: -1 | 1, mult: number) => {
+    (dir: -1 | 1) => {
       const side = editingRef.current;
       if (side === null) return;
-      onChange(nudge(axis, valueRef.current, side, dir, mult));
+      const next = nudge(axis, valueRef.current, side, dir);
+      valueRef.current = next;
+      onChange(next);
     },
     [axis, onChange],
   );
 
-  const startRamp = useCallback(
+  const startRepeat = useCallback(
     (dir: -1 | 1) => {
-      // Android autorepeats ACTION_DOWN while a key is held; the ramp is ours,
-      // so a repeat for a direction already running is ignored
-      if (ramp.current?.dir === dir) return;
-      stopRamp();
+      // Android autorepeats ACTION_DOWN while a key is held; the repeat is
+      // ours, so a resend for a direction already running is ignored
+      if (repeat.current?.dir === dir) return;
+      stopRepeat();
 
-      move(dir, 1); // a tap is exactly one notch
-      const startedAt = Date.now();
+      move(dir); // a tap is exactly one notch
       let interval: ReturnType<typeof setInterval> | undefined;
       const delay = setTimeout(() => {
-        interval = setInterval(
-          () => move(dir, stepMultiplier(Date.now() - startedAt)),
-          RAMP.tickMs,
-        );
-      }, RAMP.firstDelayMs);
+        interval = setInterval(() => move(dir), REPEAT_TICK_MS);
+      }, REPEAT_DELAY_MS);
 
-      ramp.current = {
+      repeat.current = {
         dir,
         stop: () => {
           clearTimeout(delay);
@@ -124,7 +150,7 @@ export function RangeSlider({
         },
       };
     },
-    [move, stopRamp],
+    [move, stopRepeat],
   );
 
   useTVEventHandler(
@@ -135,7 +161,7 @@ export function RangeSlider({
         if (!dir) return;
 
         if (evt.eventKeyAction === ACTION_DOWN) {
-          startRamp(dir as -1 | 1);
+          startRepeat(dir as -1 | 1);
           return;
         }
         if (evt.eventKeyAction === ACTION_UP) {
@@ -143,36 +169,49 @@ export function RangeSlider({
           // value once. Synthetic keyevents — adb, and therefore every
           // automated check — arrive as ACTION_UP only, so without this the
           // slider is inert under automation while working by hand.
-          if (!ramp.current) move(dir as -1 | 1, 1);
-          stopRamp();
+          if (!repeat.current) move(dir as -1 | 1);
+          stopRepeat();
         }
       },
-      [move, startRamp, stopRamp],
+      [move, startRepeat, stopRepeat],
     ),
   );
 
-  // back leaves the sequence rather than the screen
+  // leaving the sequence by any door — back, or focus moving away because an
+  // IR remote (no reliable D-pad trap) or a touch landed on something else —
+  // exits the same way: values already applied live, so there is nothing to
+  // commit, just the edit chrome to close
+  const exitEditing = useCallback(() => {
+    stopRepeat();
+    onEditingChange(null);
+  }, [stopRepeat, onEditingChange]);
+
   useEffect(() => {
     if (editing === null) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      stopRamp();
-      setEditing(null);
+      exitEditing();
       return true;
     });
     return () => sub.remove();
-  }, [editing, stopRamp]);
+  }, [editing, exitEditing]);
 
-  useEffect(() => stopRamp, [stopRamp]);
+  useEffect(() => stopRepeat, [stopRepeat]);
 
   /** null -> lower -> upper -> null */
   const step = () => {
-    stopRamp();
-    setEditing((e) => (e === null ? 0 : e === 0 ? 1 : null));
+    stopRepeat();
+    onEditingChange(editing === null ? 0 : editing === 0 ? 1 : null);
   };
 
   const [lo, hi] = value;
-  const xLo = axis.pos(lo) * INNER_W;
-  const xHi = axis.pos(hi) * INNER_W;
+  // handle position is itself the pill's left edge, mapped over the space the
+  // pill can actually occupy (TRAVEL), so it moves the instant the value
+  // leaves the axis floor instead of sitting dead until it clears half a
+  // handle-width — the old xLo * INNER_W - HANDLE_W / 2 formula clamped that
+  // gap away from zero and left the pill visibly detached from the track's
+  // own zero point.
+  const xLo = axis.pos(lo) * TRAVEL;
+  const xHi = axis.pos(hi) * TRAVEL;
   const { loLeft, hiLeft } = handlePositions(xLo, xHi);
   const trapped = editing !== null;
   const self = selfNode ?? null;
@@ -186,6 +225,8 @@ export function RangeSlider({
         // identity, so the values ride the label
         accessibilityLabel={`${axis.label} ${axis.fmt(lo)} to ${axis.fmt(hi)}`}
         onPress={step}
+        onBlur={exitEditing}
+        hasTVPreferredFocus={hasTVPreferredFocus}
         nextFocusUp={trapped ? self : undefined}
         nextFocusDown={trapped ? self : nextFocusDown}
         nextFocusLeft={trapped ? self : undefined}
@@ -202,7 +243,9 @@ export function RangeSlider({
               <View
                 style={[
                   styles.fill,
-                  { left: xLo, width: Math.max(0, xHi - xLo) },
+                  // the fill spans between the handles' own centres, so it lines
+                  // up with the pills rather than the raw (unclamped) value line
+                  { left: loLeft + HANDLE_W / 2, width: Math.max(0, hiLeft - loLeft) },
                   focused && styles.fillFocused,
                   trapped && styles.fillArmed,
                 ]}
@@ -218,14 +261,14 @@ export function RangeSlider({
 
 /** Keep both pills inside the track and off each other when the range is narrow. */
 function handlePositions(xLo: number, xHi: number) {
-  const max = INNER_W - HANDLE_W;
-  const clamp = (v: number) => Math.min(max, Math.max(0, v));
-  let loLeft = clamp(xLo - HANDLE_W / 2);
-  let hiLeft = clamp(xHi - HANDLE_W / 2);
+  const clamp = (v: number) => Math.min(TRAVEL, Math.max(0, v));
+  let loLeft = clamp(xLo);
+  let hiLeft = clamp(xHi);
   if (hiLeft - loLeft < HANDLE_W) {
-    const mid = (xLo + xHi) / 2;
-    loLeft = Math.min(Math.max(0, mid - HANDLE_W), INNER_W - HANDLE_W * 2);
-    hiLeft = loLeft + HANDLE_W;
+    const mid = clamp((xLo + xHi) / 2);
+    loLeft = clamp(mid - HANDLE_W / 2);
+    hiLeft = clamp(loLeft + HANDLE_W);
+    loLeft = hiLeft - HANDLE_W;
   }
   return { loLeft, hiLeft };
 }

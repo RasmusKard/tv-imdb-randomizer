@@ -3,15 +3,13 @@
  *
  *   tsx src/lib/checks.ts
  *
- * Covers the logic a D-pad walk-through cannot reach — handle clamping, the log
- * axis, the band presets, and the acceleration ramp (agent-device cannot hold a
- * key for an exact duration on Android TV, so the timing is only checkable here).
+ * Covers the logic a D-pad walk-through cannot reach — handle clamping and the
+ * band presets.
  */
 import type { Filters } from '../api/types';
+import { buildQuery, withShown } from '../api/client';
 import { AXES, RANGE_KEYS, THIS_YEAR } from '../config/filters';
-import { estimate } from './estimate';
 import { nudge } from './range';
-import { RAMP, stepMultiplier } from './ramp';
 
 // tiny local assert, so this file needs no dependency and no @types/node
 const assert = {
@@ -46,7 +44,6 @@ const baseFilters = (over: Partial<Filters> = {}): Filters => ({
   year: [1894, THIS_YEAR],
   votes: [0, 1_000_000],
   genres: {},
-  excludeIds: [],
   ...over,
 });
 
@@ -57,13 +54,13 @@ check('a handle never crosses its partner', () => {
   // drive the lower end hard right; it must stop one step below the upper end
   let v: [number, number] = [0, 5];
   for (let i = 0; i < 100; i++) v = nudge(ax, v, 0, 1);
-  assert.equal(v[0], 5 - ax.step!, `lower stopped at ${v[0]}`);
+  assert.equal(v[0], 5 - ax.step, `lower stopped at ${v[0]}`);
   assert.equal(v[1], 5);
 
   // and the upper end hard left
   let w: [number, number] = [5, 10];
   for (let i = 0; i < 100; i++) w = nudge(ax, w, 1, -1);
-  assert.equal(w[1], 5 + ax.step!, `upper stopped at ${w[1]}`);
+  assert.equal(w[1], 5 + ax.step, `upper stopped at ${w[1]}`);
   assert.equal(w[0], 5);
 });
 
@@ -80,18 +77,16 @@ check('neither handle leaves the axis', () => {
 });
 
 check('one tap is exactly one notch', () => {
-  assert.deepEqual(nudge(AXES.rating, [5, 10], 0, 1), [5.5, 10]);
+  assert.deepEqual(nudge(AXES.rating, [5, 10], 0, 1), [5.1, 10]);
   assert.deepEqual(nudge(AXES.year, [1965, THIS_YEAR], 0, -1), [1964, THIS_YEAR]);
+  assert.deepEqual(nudge(AXES.votes, [0, 1_000_000], 0, 1), [25_000, 1_000_000]);
 });
 
-check('the log votes axis round-trips', () => {
+check('the votes axis is linear, not log', () => {
   const ax = AXES.votes;
-  for (const v of [0, 1000, 25_000, 250_000, 1_000_000]) {
-    const back = ax.unpos!(ax.pos(v));
-    assert.ok(Math.abs(back - v) < Math.max(1, v * 0.001), `${v} -> ${back}`);
-  }
-  // and its midpoints land where a log axis should put them, not bunched at zero
-  assert.ok(ax.pos(1000) > 0.4 && ax.pos(1000) < 0.6, `1K sits at ${ax.pos(1000)}`);
+  // a linear axis puts 10% of the value at 10% of the track, not bunched near zero
+  assert.ok(Math.abs(ax.pos(100_000) - 0.1) < 1e-9, `100K sits at ${ax.pos(100_000)}`);
+  assert.ok(Math.abs(ax.pos(500_000) - 0.5) < 1e-9, `500K sits at ${ax.pos(500_000)}`);
 });
 
 console.log('bands');
@@ -127,68 +122,71 @@ check('each axis has exactly one whole-axis band', () => {
   }
 });
 
-console.log('ramp');
+console.log('query');
 
-check('a tap is one notch and the ramp doubles at each tier', () => {
-  assert.equal(stepMultiplier(0), 1);
-  assert.equal(stepMultiplier(RAMP.tiers[0] - 1), 1);
-  assert.equal(stepMultiplier(RAMP.tiers[0] + 1), 2);
-  assert.equal(stepMultiplier(RAMP.tiers[1] + 1), 4);
-  assert.equal(stepMultiplier(RAMP.tiers[3] + 1), 16);
+check('a bound on the edge of its axis is omitted', () => {
+  const votes = buildQuery(baseFilters({ votes: [5000, 1_000_000] }));
+  assert.ok(votes.includes('numVotes=gte.5000'), votes);
+  assert.ok(!votes.includes('numVotes=lte'), votes);
+
+  const year = buildQuery(baseFilters({ year: [2010, THIS_YEAR] }));
+  assert.ok(year.includes('startYear=gte.2010'), year);
+  assert.ok(!year.includes('startYear=lte'), year);
+
+  const rating = buildQuery(baseFilters({ rating: [0, 10] }));
+  assert.ok(!rating.includes('averageRating'), rating);
 });
 
-/** How long a sustained hold takes to drag one handle across a whole axis. */
-function sweepMs(key: (typeof RANGE_KEYS)[number]): number {
-  const ax = AXES[key];
-  let v: [number, number] = [ax.min, ax.max];
-  let held = 0;
-  for (let tick = 0; tick < 400; tick++) {
-    if (v[1] <= ax.min + (ax.step ?? 1)) return held;
-    held = RAMP.firstDelayMs + tick * RAMP.tickMs;
-    v = nudge(ax, v, 1, -1, stepMultiplier(held));
-  }
-  return Infinity;
-}
-
-check('holding crosses any axis in under two seconds', () => {
-  for (const key of RANGE_KEYS) {
-    const ms = sweepMs(key);
-    console.log(`          ${key} sweeps in ${ms}ms`);
-    assert.ok(ms < 2000, `${key} took ${ms}ms of holding`);
-  }
+check('a bound inside the axis is sent', () => {
+  const q = buildQuery(baseFilters({ year: [2010, 2019] }));
+  assert.ok(q.includes('startYear=gte.2010'), q);
+  assert.ok(q.includes('startYear=lte.2019'), q);
 });
 
-console.log('estimate');
+check('titleType is omitted for both kinds and set per single kind', () => {
+  const both = buildQuery(baseFilters({ kinds: ['movie', 'series'] }));
+  assert.ok(!both.includes('titleType'), both);
 
-check('narrowing a range never increases the count', () => {
-  for (const key of RANGE_KEYS) {
-    const ax = AXES[key];
-    const wide = estimate(baseFilters({ [key]: [ax.min, ax.max] } as Partial<Filters>));
-    const mid = (ax.min + ax.max) / 2;
-    const narrow = estimate(baseFilters({ [key]: [mid, ax.max] } as Partial<Filters>));
-    assert.ok(narrow <= wide, `${key}: ${narrow} > ${wide}`);
-  }
+  const movies = buildQuery(baseFilters({ kinds: ['movie'] }));
+  assert.ok(movies.includes('titleType=not.in.(tvSeries,tvMiniSeries)'), movies);
+
+  const series = buildQuery(baseFilters({ kinds: ['series'] }));
+  assert.ok(series.includes('titleType=in.(tvSeries,tvMiniSeries)'), series);
 });
 
-check('an empty intersection estimates zero', () => {
-  // a band of the rating axis with no corpus in it at all
-  const none = estimate(baseFilters({ rating: [10, 10], votes: [1_000_000, 1_000_000] }));
-  assert.equal(none, 0, `got ${none}`);
+check('genre braces are percent-encoded and never bare', () => {
+  const q = buildQuery(baseFilters({ genres: { Crime: 'include' } }));
+  assert.ok(q.includes('%7B') && q.includes('%7D'), q);
+  assert.ok(!/[{}]/.test(q), q);
 });
 
-check('excluding a genre shrinks, including widens the pool it draws from', () => {
-  const plain = estimate(baseFilters());
-  const excluded = estimate(baseFilters({ genres: { Horror: 'exclude' } }));
-  assert.ok(excluded < plain, `${excluded} !< ${plain}`);
-  const one = estimate(baseFilters({ genres: { Drama: 'include' } }));
-  const two = estimate(baseFilters({ genres: { Drama: 'include', Crime: 'include' } }));
-  assert.ok(two > one, `two genres ${two} !> one ${one}`);
-  assert.ok(one < plain, `one genre ${one} !< unfiltered ${plain}`);
+check('genre include uses ov., exclude uses not.ov., one of each produces both', () => {
+  const inc = buildQuery(baseFilters({ genres: { Crime: 'include' } }));
+  assert.ok(inc.includes('genres=ov.%7BCrime%7D'), inc);
+
+  const exc = buildQuery(baseFilters({ genres: { Horror: 'exclude' } }));
+  assert.ok(exc.includes('genres=not.ov.%7BHorror%7D'), exc);
+
+  const both = buildQuery(baseFilters({ genres: { Crime: 'include', Horror: 'exclude' } }));
+  assert.ok(both.includes('genres=ov.%7BCrime%7D'), both);
+  assert.ok(both.includes('genres=not.ov.%7BHorror%7D'), both);
 });
 
-check('the unfiltered estimate is the whole corpus, minus the kind split', () => {
-  const both = estimate(baseFilters({ kinds: ['movie', 'series'] }));
-  assert.equal(both, 476_818);
+check('buildQuery never emits a tconst param', () => {
+  const q = buildQuery(
+    baseFilters({ kinds: ['movie'], year: [2010, 2019], genres: { Crime: 'include' } }),
+  );
+  assert.ok(!q.includes('tconst'), q);
+});
+
+check('the whole-open filter set produces the empty string', () => {
+  assert.equal(buildQuery(baseFilters({ kinds: ['movie', 'series'] })), '');
+});
+
+check('withShown is a no-op on an empty list and appends not.in. otherwise', () => {
+  const q = buildQuery(baseFilters({ year: [2010, 2019] }));
+  assert.equal(withShown(q, []), q);
+  assert.equal(withShown(q, ['tt1', 'tt2']), `${q}&tconst=not.in.(tt1,tt2)`);
 });
 
 console.log(`\n${passed} checks passed`);

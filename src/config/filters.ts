@@ -23,24 +23,17 @@ export type Axis = {
   label: string;
   min: number;
   max: number;
-  /** Linear step per press, or null for the log-scaled votes axis. */
-  step: number | null;
+  /** Linear step per press. */
+  step: number;
   /** Value -> label shown on a handle. */
   fmt: (v: number) => string;
   /** Value -> 0..1 position along the track. */
   pos: (v: number) => number;
-  /** 0..1 position along the track -> value. Only the log axis needs it. */
-  unpos?: (p: number) => number;
   bands: Band[];
 };
 
 const VOTES_MAX = 1_000_000;
-const LOG_MAX = Math.log10(1 + VOTES_MAX);
 
-/**
- * Linear from zero to a million puts every title worth arguing about in the
- * leftmost 3% of the track, so votes ride a log axis.
- */
 const fmtVotes = (v: number) =>
   v >= VOTES_MAX ? '1M+'
   : v >= 100_000 ? `${Math.round(v / 1000)}K`
@@ -52,7 +45,7 @@ export const AXES: Record<RangeKey, Axis> = {
     label: 'Rating',
     min: 0,
     max: 10,
-    step: 0.5,
+    step: 0.1,
     fmt: (v) => v.toFixed(1),
     pos: (v) => v / 10,
     bands: [
@@ -86,10 +79,9 @@ export const AXES: Record<RangeKey, Axis> = {
     label: 'Votes',
     min: 0,
     max: VOTES_MAX,
-    step: null,
+    step: 25_000,
     fmt: fmtVotes,
-    pos: (v) => Math.log10(1 + v) / LOG_MAX,
-    unpos: (p) => Math.pow(10, p * LOG_MAX) - 1,
+    pos: (v) => v / VOTES_MAX,
     bands: [
       { name: 'Any', sub: '0–1M', lo: 0, hi: VOTES_MAX },
       { name: 'Obscure', sub: '≤1K', lo: 0, hi: 1000 },
