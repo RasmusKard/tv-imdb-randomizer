@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Filters, Genre, TitleKind } from '../api/types';
 import { ActionButton } from '../components/ActionButton';
@@ -23,9 +23,12 @@ type Props = {
   onRoll: () => void;
   /** True when arriving back from a verdict, so Roll takes focus on mount. */
   focusRoll?: boolean;
+  /** The head-right chip: the account when signed in, sign-in when not. */
+  accountLabel: string;
+  onOpenAccount: () => void;
 };
 
-export function Board({ filters, setFilters, count, pending, corpus, notice, onRoll, focusRoll }: Props) {
+export function Board({ filters, setFilters, count, pending, corpus, notice, onRoll, focusRoll, accountLabel, onOpenAccount }: Props) {
   // Android's FocusFinder scores by centre distance, so a full-width slider is
   // unreachable from a left-hand chip however close it is. Every row that sits
   // next to a slider therefore names it explicitly. See GridRow.
@@ -104,7 +107,20 @@ export function Board({ filters, setFilters, count, pending, corpus, notice, onR
           <Text style={styles.wordmark}>
             what<Text style={styles.wordmarkDot}>.</Text>watch
           </Text>
-          <Text style={styles.label}>{corpus !== null ? `${groupThousands(corpus)} titles in the corpus` : ''}</Text>
+          <View style={styles.headRight}>
+            <Text style={styles.label}>{corpus !== null ? `${groupThousands(corpus)} titles in the corpus` : ''}</Text>
+            <Pressable
+              testID="board-account"
+              accessibilityRole="button"
+              accessibilityLabel="Account"
+              onPress={onOpenAccount}
+              style={({ focused }) => [styles.accountChip, focused && styles.accountChipFocused]}
+            >
+              <Text style={[styles.accountLabel, accountLabel !== 'Sign in' && styles.accountLabelOn]}>
+                {accountLabel === 'Sign in' ? 'Sign in' : `● ${accountLabel}`}
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.blocks}>
@@ -414,6 +430,18 @@ const styles = StyleSheet.create({
   },
   wordmark: display(32, { em: -0.03, fontWeight: '800', color: colors.chalk }),
   wordmarkDot: { color: colors.sodium },
+
+  headRight: { flexDirection: 'row', alignItems: 'center', gap: s(20) },
+  accountChip: {
+    borderWidth: layout.border,
+    borderColor: colors.slatHi,
+    borderRadius: layout.radius,
+    paddingVertical: s(8),
+    paddingHorizontal: s(16),
+  },
+  accountChipFocused: { borderColor: colors.sodium, backgroundColor: colors.slat },
+  accountLabel: mono(24, { em: 0.15, caps: true, color: colors.dim }),
+  accountLabelOn: { color: colors.sodium },
 
   blocks: { paddingTop: s(10), gap: s(10) },
   block: { gap: s(6) },

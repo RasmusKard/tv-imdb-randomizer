@@ -25,7 +25,10 @@
       "package": "com.delfiapp.tvimdbrandomizer"
     },
     "ios": {
-      "bundleIdentifier": "com.delfiapp.tvimdbrandomizer"
+      "bundleIdentifier": "com.delfiapp.tvimdbrandomizer",
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Lets your phone open the CSV upload page hosted on this Apple TV, so your IMDb list can be imported."
+      }
     },
     "name": "tv-imdb-randomizer",
     "slug": "tv-imdb-randomizer"

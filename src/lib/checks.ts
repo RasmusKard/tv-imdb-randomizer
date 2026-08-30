@@ -8,6 +8,7 @@
  */
 import type { Filters } from '../api/types';
 import { buildQuery, withShown } from '../api/client';
+import { extractImdbIds } from './csv';
 import { AXES, RANGE_KEYS, THIS_YEAR } from '../config/filters';
 import { nudge } from './range';
 
@@ -187,6 +188,50 @@ check('withShown is a no-op on an empty list and appends not.in. otherwise', () 
   const q = buildQuery(baseFilters({ year: [2010, 2019] }));
   assert.equal(withShown(q, []), q);
   assert.equal(withShown(q, ['tt1', 'tt2']), `${q}&tconst=not.in.(tt1,tt2)`);
+});
+
+console.log('csv');
+
+const RATINGS_CSV = [
+  'Const,Your Rating,Date Rated,Title,Original Title,URL,Title Type,"IMDb Rating",Runtime (mins),Year,Genres,Num Votes,Release Date,Directors',
+  'tt0111161,10,2024-01-05,"The Shawshank Redemption",The Shawshank Redemption,https://www.imdb.com/title/tt0111161/,movie,9.3,142,1994,Drama,2900000,1994-10-14,Frank Darabont',
+  'tt0117731,7,2024-01-06,"Trainspotting, indeed",Trainspotting,https://www.imdb.com/title/tt0117731/,movie,8.1,93,1996,Drama,700000,1996-07-19,Danny Boyle',
+  'tt5491994,8,2024-02-01,"Planet Earth II",Planet Earth II,https://www.imdb.com/title/tt5491994/,tvSeries,9.5,360,2016,"Documentary",66000,2016-11-06,David Attenborough',
+].join('\r\n');
+
+check('a ratings export yields its Const column, order kept', () => {
+  assert.deepEqual(extractImdbIds(RATINGS_CSV), ['tt0111161', 'tt0117731', 'tt5491994']);
+});
+
+check('quoted commas, doubled quotes and CRLF never corrupt a row', () => {
+  // the second row's title holds a comma inside quotes; if quoting broke, the
+  // Const value would shift one column left and no id would match
+  assert.ok(extractImdbIds(RATINGS_CSV).includes('tt0117731'), 'row with quoted comma lost');
+});
+
+check('duplicates collapse to one id', () => {
+  const csv = 'Const\n\rtt1\n\rtt1\n\rtt2\r\ntt2';
+  assert.deepEqual(extractImdbIds(csv), ['tt1', 'tt2']);
+});
+
+check('a trailing newline does not invent an id, and CR-only files parse', () => {
+  assert.deepEqual(extractImdbIds('Const\r\ntt1\r\n'), ['tt1']);
+  assert.deepEqual(extractImdbIds('Const\rtt1\rtt2\r'), ['tt1', 'tt2']);
+});
+
+check('ids are matched exactly — URL cells and prefixes contribute nothing', () => {
+  const csv = 'junk\nhttps://www.imdb.com/title/tt0111161/\ntt\nttx111111\nnot a tconst at all';
+  assert.deepEqual(extractImdbIds(csv), []);
+});
+
+check('without a Const header, any cell that is exactly a tconst is taken', () => {
+  const csv = 'a,b,c\nx,tt0111161,y\ntt0117731,https://www.imdb.com/title/tt5491994/,z';
+  assert.deepEqual(extractImdbIds(csv), ['tt0111161', 'tt0117731']);
+});
+
+check('an empty file yields nothing, not a crash', () => {
+  assert.deepEqual(extractImdbIds(''), []);
+  assert.deepEqual(extractImdbIds('Const\n'), []);
 });
 
 console.log(`\n${passed} checks passed`);

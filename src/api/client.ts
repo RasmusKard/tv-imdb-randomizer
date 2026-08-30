@@ -1,7 +1,8 @@
 import type { Filters, Genre, Title, TitleKind } from './types';
+import { authHeaders } from './auth';
+import { BASE } from './base';
 import { AXES, type RangeKey } from '../config/filters';
 
-const BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://10.0.2.2:3000';
 const SERIES = 'tvSeries,tvMiniSeries';
 const COLUMN: Record<RangeKey, string> = {
   rating: 'averageRating',
@@ -52,13 +53,52 @@ export function withShown(query: string, shown: string[]): string {
   return query ? `${query}&${excl}` : excl;
 }
 
-/** `count=exact` over a query. Throws on a non-2xx. */
-export async function fetchCount(query: string, signal?: AbortSignal): Promise<number> {
-  const res = await fetch(`${BASE}/title_full?${query}`, {
-    method: 'HEAD',
-    headers: { Prefer: 'count=exact' },
-    signal,
-  });
+/**
+ * A GET/HEAD with the token attached — and one retry without it on a 401.
+ *
+ * The server excludes the user's watched titles when the Bearer is valid, but
+ * a token it cannot verify (expired, secret rotated, garbage) is not anonymous:
+ * PostgREST answers 401 PGRST301 for every request. A stale stored token must
+ * degrade to the anonymous corpus, never brick the board.
+ *
+ * The dead token is reported once — the board fires count, corpus and batch in
+ * quick succession, all carrying the same doomed token, and each would re-raise
+ * the notice. A re-login issues a new token, which is reported afresh if it
+ * dies too.
+ */
+let unauthorizedHandler: (() => void) | null = null;
+let lastDeadToken: string | null = null;
+
+/** Called at most once per distinct dead token, before the anonymous retry. */
+export function setUnauthorizedHandler(fn: (() => void) | null): void {
+  unauthorizedHandler = fn;
+}
+
+async function authedFetch(url: string, init: RequestInit, token?: string): Promise<Response> {
+  if (!token) return fetch(url, init);
+  const res = await fetch(url, { ...init, headers: { ...init.headers, ...authHeaders(token) } });
+  if (res.status !== 401) return res;
+  if (token !== lastDeadToken) {
+    lastDeadToken = token;
+    unauthorizedHandler?.();
+  }
+  return fetch(url, init);
+}
+
+/**
+ * `count=exact` over a query. Throws on a non-2xx. A token rides along so the
+ * count is the user's own corpus — the server drops their watched titles.
+ */
+export async function fetchCount(
+  query: string,
+  signal?: AbortSignal,
+  token?: string,
+): Promise<number> {
+  const res = await authedFetch(
+    `${BASE}/title_full?${query}`,
+    { method: 'HEAD', headers: { Prefer: 'count=exact' }, signal },
+    token,
+  );
   if (!res.ok) throw new Error(`count fetch failed: ${res.status}`);
   const range = res.headers.get('content-range') ?? '';
   return Number(range.split('/')[1] ?? 0);
@@ -84,11 +124,12 @@ export async function fetchBatch(
   query: string,
   size = 20,
   signal?: AbortSignal,
+  token?: string,
 ): Promise<Title[]> {
   const r = Math.random();
   // a leading `&` from an empty filter string is harmless, so no special case for "no filters"
   const get = async (extra: string): Promise<Title[]> => {
-    const res = await fetch(`${BASE}/title_full?${query}&${extra}`, { signal });
+    const res = await authedFetch(`${BASE}/title_full?${query}&${extra}`, { signal }, token);
     if (!res.ok) throw new Error(`batch fetch failed: ${res.status}`);
     // a 200 that is not rows — an error body, a proxy's HTML-as-JSON — must not
     // flow on as Titles, or the verdict renders a tconst of undefined

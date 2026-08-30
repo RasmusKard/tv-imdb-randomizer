@@ -2,15 +2,18 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
-import { buildQuery, fetchBatch, fetchCount, withShown } from './src/api/client';
+import { buildQuery, fetchBatch, fetchCount, setUnauthorizedHandler, withShown } from './src/api/client';
+import { loadSession, saveSession, clearSession, type Session } from './src/api/auth';
 import type { Filters, Title } from './src/api/types';
 import { THIS_YEAR } from './src/config/filters';
 import { Board } from './src/screens/Board';
 import { Verdict } from './src/screens/Verdict';
+import { Account } from './src/screens/Account';
+import { Import } from './src/screens/Import';
 
 /**
- * Two screens and no deep links do not earn a router — this useState is the
- * whole navigation.
+ * Three screens, no deep links, and the verdict overlaying whichever of them
+ * is up — this useState is the whole navigation.
  */
 const INITIAL: Filters = {
   kinds: ['movie', 'series'],
@@ -26,6 +29,42 @@ const ROLL_TIMEOUT_MS = 4000;
 
 export default function App() {
   const [filters, setFiltersState] = useState<Filters>(INITIAL);
+  const [screen, setScreen] = useState<'board' | 'account' | 'import'>('board');
+
+  // the account. The token rides every title query: the server excludes this
+  // user's watched titles from the corpus when it sees a valid Bearer, so an
+  // authenticated roll cannot serve something they have already seen.
+  const [session, setSessionState] = useState<Session | null>(null);
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
+
+  useEffect(() => {
+    loadSession().then(setSessionState);
+  }, []);
+
+  const setSession = useCallback((s: Session | null) => {
+    setSessionState(s);
+    if (s) saveSession(s);
+    else clearSession();
+  }, []);
+
+  // a token the server rejects means the stored session is dead: forget it and
+  // say so — the board falls back to the anonymous corpus, the notice points at
+  // the account screen. Fires once per dead token however many requests were
+  // in flight with it.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setSession(null);
+      setNotice('Session expired — sign in again');
+    });
+    return () => setUnauthorizedHandler(null);
+  }, [setSession]);
+
+  // bumped after an import: everything the server counts changes behind a
+  // token the client already holds, so both counters must be refetched
+  const [importedAt, setImportedAt] = useState(0);
+  const onImported = useCallback(() => setImportedAt((n) => n + 1), []);
+
   // session state, not a filter: it survives filter changes so a roll never
   // repeats, and it is read through a ref so the count debounce below does not
   // re-fire on every roll to learn a number the roll already knows
@@ -46,8 +85,8 @@ export default function App() {
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchCount('').then(setCorpus).catch(() => {});
-  }, []);
+    fetchCount('', undefined, sessionRef.current?.token).then(setCorpus).catch(() => {});
+  }, [session?.token, importedAt]);
 
   // one count per "I'm done fiddling": keyed on the filter set alone, so a
   // held slider does not fire a request per tick and a roll does not fire one
@@ -57,7 +96,7 @@ export default function App() {
     setPending(true);
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      fetchCount(withShown(query, shownRef.current), controller.signal)
+      fetchCount(withShown(query, shownRef.current), controller.signal, sessionRef.current?.token)
         .then((n) => {
           setCount(n);
           setPending(false);
@@ -72,7 +111,7 @@ export default function App() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [filters]);
+  }, [filters, session?.token, importedAt]);
 
   const setFilters = useCallback((next: Filters) => {
     setFiltersState(next);
@@ -95,7 +134,12 @@ export default function App() {
       let pool = queue;
       if (pool.length === 0) {
         try {
-          pool = await fetchBatch(withShown(buildQuery(filters), shownRef.current), 20, controller.signal);
+          pool = await fetchBatch(
+            withShown(buildQuery(filters), shownRef.current),
+            20,
+            controller.signal,
+            sessionRef.current?.token,
+          );
         } catch {
           setNotice('Could not reach the server');
           setTitle(null);
@@ -133,6 +177,20 @@ export default function App() {
     setReturned(true);
   }, []);
 
+  const openAccount = useCallback(() => {
+    setScreen('account');
+    setReturned(false);
+  }, []);
+  const toBoardFromScreen = useCallback(() => {
+    setScreen('board');
+    setReturned(true);
+  }, []);
+  const openImport = useCallback(() => {
+    // the import pushes into the signed-in account, so there is nothing to
+    // show without one — the account screen is the way in
+    if (sessionRef.current) setScreen('import');
+  }, []);
+
   // back returns to the board, and on the board it exits without a confirmation
   // prompt, which is what the Android TV guidance asks for
   useEffect(() => {
@@ -155,6 +213,10 @@ export default function App() {
           onRollAgain={roll}
           onBack={toBoard}
         />
+      ) : screen === 'account' ? (
+        <Account session={session} onSession={setSession} onImport={openImport} onBack={toBoardFromScreen} />
+      ) : screen === 'import' && session ? (
+        <Import session={session} onBack={toBoardFromScreen} onImported={onImported} />
       ) : (
         <Board
           filters={filters}
@@ -165,6 +227,8 @@ export default function App() {
           notice={notice}
           onRoll={roll}
           focusRoll={returned}
+          accountLabel={session ? session.email : 'Sign in'}
+          onOpenAccount={openAccount}
         />
       )}
     </>
