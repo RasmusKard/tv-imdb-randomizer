@@ -57,7 +57,7 @@ type Props = {
 };
 
 const PAD_H = s(14);
-const HANDLE_W = s(104);
+const HANDLE_W = s(124);
 const INNER_W = layout.contentWidth - PAD_H * 2;
 /** Space a handle's own left edge can occupy, so it reaches both track ends flush. */
 const TRAVEL = INNER_W - HANDLE_W;
@@ -334,9 +334,9 @@ const styles = StyleSheet.create({
     borderRadius: layout.radius,
     backgroundColor: colors.slatHi,
   },
-  handleText: mono(21, { fontWeight: '700', color: colors.chalk }),
+  handleText: mono(26, { fontWeight: '700', color: colors.chalk }),
   handleTextLive: { color: colors.onSodium },
-  arrow: mono(18, { fontWeight: '700', color: colors.onSodium }),
+  arrow: mono(22, { fontWeight: '700', color: colors.onSodium }),
 });
 
 const handleState = StyleSheet.create({

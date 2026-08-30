@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Filters, GenreState, Title } from '../api/types';
 import { kindOf } from '../api/client';
@@ -33,7 +33,7 @@ export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Prop
     title.runtimeMinutes == null
       ? null
       : `${title.runtimeMinutes} min${isSeries ? ' / ep' : ''}`,
-    `${Math.round(title.numVotes / 1000)}K votes`,
+    `${AXES.votes.fmt(title.numVotes)} votes`,
   ].filter((m): m is string => m !== null);
 
   return (
@@ -87,7 +87,9 @@ export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Prop
               label="IMDb"
               variant="ghost"
               testID={testId.imdb}
-              onPress={() => {}}
+              // a TV without a browser just fails the open; that is still better
+              // than a button that pretends to work and does nothing
+              onPress={() => Linking.openURL(`https://www.imdb.com/title/${title.tconst}/`).catch(() => {})}
               style={styles.action}
             />
           </View>
@@ -165,10 +167,10 @@ const styles = StyleSheet.create({
   main: { width: layout.span(5) },
 
   metaLine: { flexDirection: 'row', alignItems: 'center', gap: s(20) },
-  tick: { width: StyleSheet.hairlineWidth, height: s(22), backgroundColor: colors.slatHi },
+  tick: { width: StyleSheet.hairlineWidth, height: s(28), backgroundColor: colors.slatHi },
   score: mono(42, { fontWeight: '700', color: colors.sodium }),
   star: { fontSize: s(22) },
-  metaText: mono(18, { em: 0.2, caps: true, color: colors.dim }),
+  metaText: mono(24, { em: 0.2, caps: true, color: colors.dim }),
 
   title: display(94, {
     em: -0.035,
@@ -180,7 +182,7 @@ const styles = StyleSheet.create({
   titleLong: display(68, { em: -0.03 }),
 
   tags: { flexDirection: 'row', gap: s(10), marginTop: s(22) },
-  tag: mono(18, {
+  tag: mono(24, {
     em: 0.16,
     caps: true,
     color: colors.chalk,
@@ -190,8 +192,8 @@ const styles = StyleSheet.create({
     borderRadius: s(2),
     overflow: 'hidden',
   }),
-  plot: display(28, {
-    lineHeight: s(42),
+  plot: display(32, {
+    lineHeight: s(46),
     color: colors.dim,
     marginTop: s(26),
     maxWidth: layout.span(4),
@@ -209,7 +211,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.slatHi,
   },
-  posterKind: mono(15, { em: 0.24, caps: true, color: colors.dim }),
+  posterKind: mono(24, { em: 0.24, caps: true, color: colors.dim }),
   posterTitle: display(54, {
     em: -0.03,
     caps: true,
@@ -225,8 +227,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  posterScore: mono(18, { color: colors.sodium }),
-  posterId: mono(18, { color: colors.dim }),
+  posterScore: mono(24, { color: colors.sodium }),
+  posterId: mono(24, { color: colors.dim }),
 
   receipt: {
     width: '100%',
@@ -242,8 +244,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.boardLo,
   },
   receiptFocused: { borderColor: colors.sodium },
-  receiptText: mono(19, { em: 0.08, caps: true, color: colors.chalk, flexShrink: 1 }),
+  receiptText: mono(24, { em: 0.08, caps: true, color: colors.chalk, flexShrink: 1 }),
   inc: { color: colors.sodium },
   exc: { color: colors.cold },
-  receiptLeft: mono(21, { em: 0.08, caps: true, color: colors.sodium }),
+  receiptLeft: mono(26, { em: 0.08, caps: true, color: colors.sodium }),
 });

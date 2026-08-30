@@ -166,12 +166,10 @@ export function Board({ filters, setFilters, count, pending, corpus, notice, onR
             sliderBelow={null}
           />
 
-          <Block label="Genres" aside="once = must have  ·  twice = never show">
+          <Block label="Genres" aside="once = include  ·  twice = never show">
             {[0, 1, 2].map((row) => (
-              // only the first genre row borders a slider
               <GridRow
                 key={row}
-                rowFocusUp={row === 0 ? votesNode : undefined}
                 // Roll spans columns 5-7, so its centre is far from column 1 and
                 // geometry never finds it from the left of the last genre row
                 rowFocusDown={row === 2 ? rollNode : undefined}
@@ -186,10 +184,12 @@ export function Board({ filters, setFilters, count, pending, corpus, notice, onR
                       state={state}
                       testID={testId.genre(genre)}
                       // the tri-state rides the label so a screen reader says it
-                      // and agent-device can assert it
+                      // and agent-device can assert it. "included", not "must
+                      // have": several included genres match ANY of them (the
+                      // API's `ov.` is an overlap), so the stronger wording lied
                       accessibilityLabel={
                         state === 'on'
-                          ? `${genre}, must have`
+                          ? `${genre}, included`
                           : state === 'excluded'
                             ? `${genre}, never show`
                             : genre
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
-    height: s(20),
+    height: s(28),
   },
   dock: {
     marginTop: 'auto',
@@ -433,8 +433,8 @@ const styles = StyleSheet.create({
     gap: layout.gap,
   },
   counter: { width: layout.span(3), gap: s(5) },
-  dockLabel: mono(15, { em: 0.2, caps: true, color: colors.dim }),
-  warn: mono(16, { em: 0.1, caps: true, color: colors.cold, width: layout.cell }),
+  dockLabel: mono(24, { em: 0.2, caps: true, color: colors.dim }),
+  warn: mono(24, { em: 0.1, caps: true, color: colors.cold, width: layout.cell }),
   roll: { width: layout.span(3) },
-  label: mono(18, { em: 0.2, caps: true, color: colors.dim }),
+  label: mono(26, { em: 0.2, caps: true, color: colors.dim }),
 });

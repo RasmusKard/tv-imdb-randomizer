@@ -33,6 +33,11 @@ export default function App() {
   const shownRef = useRef(shown);
   shownRef.current = shown;
 
+  // read through a ref inside roll, so a roll that resolves after the filters
+  // changed can tell and drop its stale result
+  const filtersRef = useRef(filters);
+  filtersRef.current = filters;
+
   const [corpus, setCorpus] = useState<number | null>(null);
   const [count, setCount] = useState<number | null>(null);
   const [pending, setPending] = useState(false);
@@ -96,6 +101,12 @@ export default function App() {
           setTitle(null);
           return;
         }
+        // the filters changed while the batch was in flight: setFilters already
+        // emptied the queue, so landing this pick would both contradict the new
+        // filters on the verdict's receipt and re-poison the queue with up to 19
+        // more old-filter titles. The press belongs to a board that no longer
+        // exists — drop it and let the next roll fetch under the new filters.
+        if (filtersRef.current !== filters) return;
         if (pool.length === 0) {
           setNotice('Seen them all — widen a range');
           setTitle(null);

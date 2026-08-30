@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     borderWidth: layout.border,
     borderColor: 'transparent',
   },
-  tall: { height: s(58) },
+  tall: { height: s(64) },
   genre: { height: s(52) },
   focused: {
     borderColor: colors.sodium,
@@ -121,12 +121,12 @@ const styles = StyleSheet.create({
     zIndex: 3,
   },
 
-  name: mono(18, { em: 0.09, caps: true, color: colors.dim }),
-  /** Only the size changes: the tracking stays the one computed against 18. */
-  nameGenre: { fontSize: s(21) },
+  name: mono(24, { em: 0.09, caps: true, color: colors.dim }),
+  /** Only the size changes: the tracking stays the one computed against 24. */
+  nameGenre: { fontSize: s(26) },
   nameFocused: { color: colors.chalk },
 
-  sub: mono(14, { em: 0.05, caps: true, color: colors.dimmer }),
+  sub: mono(22, { em: 0.05, caps: true, color: colors.dimmer }),
   subFocused: { color: colors.dim },
 });
 
