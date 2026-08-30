@@ -1,51 +1,52 @@
-# TV Example
+# what.watch
 
-This is an Expo project that can be built for Apple TV and Android TV targets, and also supports mobile and web platforms.
+A random-episode/night's-pick shuffler for Android TV. It filters a corpus of 534 836
+IMDb titles by type, rating, year, votes and genres on a D-pad-first board, then rolls
+one title at a time — never repeating within a session — onto a verdict screen.
 
-In addition to Expo SDK packages, this project uses
+Built with Expo SDK 57 on the React Native TV fork (`react-native-tvos`), targeting
+Android TV; also buildable for Apple TV, mobile and web.
 
-- the [React Native TV fork](https://github.com/react-native-tvos/react-native-tvos), which supports both phone (Android and iOS) and TV (Android TV and Apple TV) targets
-- the [React Native TV config plugin](https://github.com/react-native-tvos/config-tv/tree/main/packages/config-tv) to allow Expo prebuild to modify the project's native files for TV builds
+## The API dependency
 
-## 🚀 How to use
+The app is a client. It talks to a PostgREST-style **what-watch API** (`/title_full`)
+that serves the IMDb corpus — counts, filtered batches, random windows. See
+`consuming-the-api.md` for the measured spec the client is written against. Point it
+at the server with `EXPO_PUBLIC_API_URL` in `.env` (copy `.env.example`; `10.0.2.2`
+reaches the host from an emulator, a LAN address reaches it from a physical device).
 
-#### Creating a new project
+Plots and posters are the server's job: the ask lives in `tmdb-for-the-api.md`, and
+until it lands the verdict keeps its placeholder panel. `plex-slugs-for-the-api.md`
+is the same pattern for "Open in Plex".
 
-- Create a project: `npx create-expo-app -e with-tv`
-- `cd` into the project
-
-- For TV development:
-
-```sh
-yarn
-yarn prebuild:tv # Executes clean Expo prebuild with TV modifications
-yarn ios # Build and run for Apple TV
-yarn android # Build for Android TV
-yarn web # Run the project on web from localhost
-```
-- For mobile development:
+## Run it
 
 ```sh
 yarn
-yarn prebuild # Executes Expo prebuild with no TV modifications
-yarn ios # Build and run for iOS
-yarn android # Build for Android mobile
-yarn web # Run the project on web from localhost
+yarn prebuild:tv   # Expo prebuild with TV modifications (EXPO_TV=1)
+yarn android       # build and install on a device/emulator
 ```
-> **_NOTE:_**
-> Setting the environment variable `EXPO_TV=1` enables the `@react-native-tvos/config-tv` plugin to modify the project for TV.
-> This can also be done by setting the parameter `isTV` to true in the `app.json`.
 
-#### TV specific file extensions
+Debug builds need Metro running (`yarn start`); if several worktrees share a machine,
+give this one its own port and map it per-device, e.g.
+`adb -s emulator-5556 reverse tcp:8081 tcp:8082` against `expo start --port 8082`.
 
-This project contains an [example Metro configuration](./metro.config.js) that allows Metro to resolve application source files with TV-specific code, indicated by specific file extensions (`*.ios.tv.tsx`, `*.android.tv.tsx`, `*.tv.tsx`). This config is not enabled by default, since it will impact bundling performance, but is available for developers who need this capability.
+## Checks
 
-#### TV specific app icons and banners
+There is no test framework. The one runnable check covers the pure logic a D-pad
+walk-through cannot reach — query building, slider clamping, band presets:
 
-This project contains placeholder images for the Android TV banner and for Apple TV brand assets (app icon and top shelf images). The `config-tv` plugin will use these images to construct the required native image files and make the right modifications in project files. You can simply replace these images with your own app images. Note that for Apple TV, the images must be the exact sizes indicated.
+```sh
+yarn typecheck     # tsc --noEmit, strict
+yarn checks        # tsx src/lib/checks.ts
+```
 
-#### Other setup steps
+Both must be green at the end of every change; CI runs them on push.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## Planning docs
+
+`PLAN.md` documents how the board was wired to the real API, `PLAN-plex.md` the
+"Open in Plex" experiment, and `tmdb-for-the-api.md` and `plex-slugs-for-the-api.md`
+the asks that would give the verdict its poster, plot and Plex link. They are written
+in a measured-facts style on purpose: every number in them was checked against a
+running server or device, not assumed.
