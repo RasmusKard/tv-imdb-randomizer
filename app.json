@@ -22,7 +22,8 @@
       "expo-status-bar"
     ],
     "android": {
-      "package": "com.delfiapp.tvimdbrandomizer"
+      "package": "com.delfiapp.tvimdbrandomizer",
+      "permissions": ["REQUEST_INSTALL_PACKAGES"]
     },
     "ios": {
       "bundleIdentifier": "com.delfiapp.tvimdbrandomizer",

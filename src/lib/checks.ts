@@ -10,6 +10,7 @@ import type { Filters } from '../api/types';
 import { buildQuery, withShown } from '../api/client';
 import { extractImdbIds } from './csv';
 import { AXES, RANGE_KEYS, THIS_YEAR } from '../config/filters';
+import { pickUpdate, type Manifest } from '../update/compare';
 import { nudge } from './range';
 
 // tiny local assert, so this file needs no dependency and no @types/node
@@ -232,6 +233,33 @@ check('without a Const header, any cell that is exactly a tconst is taken', () =
 check('an empty file yields nothing, not a crash', () => {
   assert.deepEqual(extractImdbIds(''), []);
   assert.deepEqual(extractImdbIds('Const\n'), []);
+});
+
+console.log('update picking');
+
+const UPDATE: Manifest = {
+  stable: { versionName: '1.2.0', versionCode: 1020099, apkUrl: 'a', md5: 'm', changelog: [] },
+  beta: { versionName: '1.3.0-beta.2', versionCode: 1030002, apkUrl: 'a', md5: 'm', changelog: [] },
+};
+
+check('a newer versionCode is offered, strictly — equal and lower never are', () => {
+  assert.deepEqual(pickUpdate(UPDATE, 'stable', 1020098), UPDATE.stable);
+  assert.equal(pickUpdate(UPDATE, 'stable', 1020099), null, 'equal must not reinstall');
+  assert.equal(pickUpdate(UPDATE, 'stable', 1020100), null, 'never downgrade');
+});
+
+check('a stable build always outranks its own betas, and a beta follows its channel', () => {
+  // stable 1.3.0 (1030099) > beta.2 of 1.3.0 (1030002): a beta device can
+  // always step back down to the stable of the same semver
+  assert.ok(1030099 > 1030002, 'stable suffix must beat the beta suffix');
+  assert.deepEqual(pickUpdate(UPDATE, 'beta', 1030000), UPDATE.beta);
+  assert.equal(pickUpdate(UPDATE, 'beta', 1030002), null);
+});
+
+check('an empty channel, a missing channel and a broken manifest all mean no update', () => {
+  assert.equal(pickUpdate({ stable: null }, 'stable', 0), null);
+  assert.equal(pickUpdate({}, 'stable', 0), null);
+  assert.equal(pickUpdate({ stable: { ...UPDATE.stable!, versionCode: NaN } }, 'stable', 0), null);
 });
 
 console.log(`\n${passed} checks passed`);

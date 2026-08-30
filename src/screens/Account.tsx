@@ -3,6 +3,9 @@ import { BackHandler, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { fetchWatched, login, register, type Session } from '../api/auth';
 import { ActionButton } from '../components/ActionButton';
+import { UpdateCard } from '../components/UpdateCard';
+import type { UpdateInfo } from '../update/compare';
+import { checkForUpdate, installedVersion } from '../update/checker';
 import { colors, display, layout, mono, s, screen } from '../theme';
 
 type Props = {
@@ -10,6 +13,9 @@ type Props = {
   onSession: (s: Session | null) => void;
   onImport: () => void;
   onBack: () => void;
+  /** An update the app has found and is offering; lives here so the board banner can point at it. */
+  update: UpdateInfo | null;
+  onUpdate: (u: UpdateInfo | null) => void;
 };
 
 /**
@@ -18,7 +24,7 @@ type Props = {
  * the form is exactly two fields and two actions — register reuses the same
  * fields, since the server's register is login-plus-signup anyway.
  */
-export function Account({ session, onSession, onImport, onBack }: Props) {
+export function Account({ session, onSession, onImport, onBack, update, onUpdate }: Props) {
   // back returns to the board — it works signed out, so there is nothing to confirm
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -73,6 +79,25 @@ export function Account({ session, onSession, onImport, onBack }: Props) {
     setWatchedCount(null);
     setMode('signin');
   }, [onSession]);
+
+  // updates have nothing to do with the account — the row lives below the
+  // form either way. A manual check always answers, unlike the daily one.
+  const version = installedVersion();
+  const [checking, setChecking] = useState(false);
+  const checkForUpdates = useCallback(async () => {
+    if (checking) return;
+    setChecking(true);
+    setNotice(null);
+    try {
+      const found = await checkForUpdate({ force: true });
+      onUpdate(found);
+      if (!found) setNotice('Up to date');
+    } catch (e) {
+      setNotice((e as { message?: string }).message ?? 'Update check failed');
+    } finally {
+      setChecking(false);
+    }
+  }, [checking, onUpdate]);
 
   return (
     <View style={screen.root}>
@@ -142,6 +167,30 @@ export function Account({ session, onSession, onImport, onBack }: Props) {
           </View>
         )}
 
+        {update && (
+          <View style={styles.updateBlock}>
+            <UpdateCard
+              info={update}
+              testID="update-card"
+              onHandedOff={() => setNotice('Installer opened — confirm it there')}
+              onError={setNotice}
+            />
+          </View>
+        )}
+
+        <View style={styles.versionRow}>
+          <Text style={styles.versionLabel} testID="account-version">
+            {version.versionName ?? 'dev'} ({version.versionCode})
+          </Text>
+          <ActionButton
+            label={checking ? 'Checking…' : 'Check for updates'}
+            variant="ghost"
+            testID="account-check-updates"
+            onPress={checkForUpdates}
+            style={styles.wide}
+          />
+        </View>
+
         <Text style={styles.notice} numberOfLines={2} testID="account-notice">
           {notice ?? ''}
         </Text>
@@ -191,4 +240,8 @@ const styles = StyleSheet.create({
 
   notice: mono(26, { em: 0.1, caps: true, color: colors.cold, marginTop: 'auto' }),
   label: mono(26, { em: 0.2, caps: true, color: colors.dim }),
+
+  updateBlock: { width: layout.span(4) },
+  versionRow: { flexDirection: 'row', gap: layout.gap, width: layout.span(4), alignItems: 'center' },
+  versionLabel: mono(26, { em: 0.2, caps: true, color: colors.dim }),
 });

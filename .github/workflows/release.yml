@@ -1,0 +1,86 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release, e.g. v1.0.1'
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - run: yarn --frozen-lockfile
+
+      - name: Stamp the version from the tag
+        run: node scripts/bump-version.mjs "$TAG"
+
+      - name: Prebuild the android project
+        run: yarn prebuild:tv
+
+      - name: Decode the release keystore
+        run: echo "$KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+
+      - name: Point release signing at the keystore
+        run: node scripts/patch-release-signing.mjs
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Build the release APK
+        run: cd android && ./gradlew assembleRelease
+        env:
+          # baked into the JS bundle at metro time; falls back to this repo's
+          # own latest-release manifest
+          EXPO_PUBLIC_UPDATE_MANIFEST_URL: ${{ secrets.UPDATE_MANIFEST_URL || format('https://github.com/{0}/releases/download/latest/update-manifest.json', github.repository) }}
+
+      - name: Name the APK after the release
+        run: |
+          VERSION=$(node -p "require('./app.json').expo.version")
+          cp android/app/build/outputs/apk/release/app-release.apk "app-tv-$VERSION.apk"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Collect the changelog
+        run: |
+          # annotated tags carry their notes in the tag object; a lightweight
+          # tag falls back to the tagged commit's message
+          git tag -l "$TAG" --format='%(contents:body)' > release-notes.txt
+          if [ ! -s release-notes.txt ]; then
+            git log -1 --format=%B "$TAG" > release-notes.txt
+          fi
+
+      - name: Generate the update manifest
+        run: node scripts/make-manifest.mjs --tag "$TAG" --apk "app-tv-$VERSION.apk" --notes release-notes.txt
+
+      - name: Publish to the latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view latest >/dev/null 2>&1 || \
+            gh release create latest --prerelease --title "Latest release"
+          gh release upload latest "app-tv-$VERSION.apk" update-manifest.json --clobber
+          gh release edit latest --notes-file release-notes.txt

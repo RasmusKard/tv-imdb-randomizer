@@ -10,6 +10,8 @@ import { Board } from './src/screens/Board';
 import { Verdict } from './src/screens/Verdict';
 import { Account } from './src/screens/Account';
 import { Import } from './src/screens/Import';
+import { checkForUpdate } from './src/update/checker';
+import type { UpdateInfo } from './src/update/compare';
 
 /**
  * Three screens, no deep links, and the verdict overlaying whichever of them
@@ -59,6 +61,15 @@ export default function App() {
     });
     return () => setUnauthorizedHandler(null);
   }, [setSession]);
+
+  // the daily OTA check, gated to once a day inside the checker. Silent both
+  // ways: what it finds lights the board banner, nothing ever steals focus.
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  useEffect(() => {
+    checkForUpdate()
+      .then(setUpdate)
+      .catch(() => {});
+  }, []);
 
   // bumped after an import: everything the server counts changes behind a
   // token the client already holds, so both counters must be refetched
@@ -214,7 +225,14 @@ export default function App() {
           onBack={toBoard}
         />
       ) : screen === 'account' ? (
-        <Account session={session} onSession={setSession} onImport={openImport} onBack={toBoardFromScreen} />
+        <Account
+          session={session}
+          onSession={setSession}
+          onImport={openImport}
+          onBack={toBoardFromScreen}
+          update={update}
+          onUpdate={setUpdate}
+        />
       ) : screen === 'import' && session ? (
         <Import session={session} onBack={toBoardFromScreen} onImported={onImported} />
       ) : (
@@ -229,6 +247,8 @@ export default function App() {
           focusRoll={returned}
           accountLabel={session ? session.email : 'Sign in'}
           onOpenAccount={openAccount}
+          updateAvailable={update !== null}
+          onOpenUpdate={openAccount}
         />
       )}
     </>

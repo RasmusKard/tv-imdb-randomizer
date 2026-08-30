@@ -26,9 +26,12 @@ type Props = {
   /** The head-right chip: the account when signed in, sign-in when not. */
   accountLabel: string;
   onOpenAccount: () => void;
+  /** An update was found; the banner is a pointer, the card lives on the account screen. */
+  updateAvailable: boolean;
+  onOpenUpdate: () => void;
 };
 
-export function Board({ filters, setFilters, count, pending, corpus, notice, onRoll, focusRoll, accountLabel, onOpenAccount }: Props) {
+export function Board({ filters, setFilters, count, pending, corpus, notice, onRoll, focusRoll, accountLabel, onOpenAccount, updateAvailable, onOpenUpdate }: Props) {
   // Android's FocusFinder scores by centre distance, so a full-width slider is
   // unreachable from a left-hand chip however close it is. Every row that sits
   // next to a slider therefore names it explicitly. See GridRow.
@@ -109,6 +112,17 @@ export function Board({ filters, setFilters, count, pending, corpus, notice, onR
           </Text>
           <View style={styles.headRight}>
             <Text style={styles.label}>{corpus !== null ? `${groupThousands(corpus)} titles in the corpus` : ''}</Text>
+            {updateAvailable && (
+              <Pressable
+                testID="board-update"
+                accessibilityRole="button"
+                accessibilityLabel="Update available"
+                onPress={onOpenUpdate}
+                style={({ focused }) => [styles.accountChip, styles.updateChip, focused && styles.accountChipFocused]}
+              >
+                <Text style={styles.updateLabel}>● update ready</Text>
+              </Pressable>
+            )}
             <Pressable
               testID="board-account"
               accessibilityRole="button"
@@ -442,6 +456,8 @@ const styles = StyleSheet.create({
   accountChipFocused: { borderColor: colors.sodium, backgroundColor: colors.slat },
   accountLabel: mono(24, { em: 0.15, caps: true, color: colors.dim }),
   accountLabelOn: { color: colors.sodium },
+  updateChip: { borderColor: colors.sodium },
+  updateLabel: mono(24, { em: 0.15, caps: true, color: colors.sodium }),
 
   blocks: { paddingTop: s(10), gap: s(10) },
   block: { gap: s(6) },
