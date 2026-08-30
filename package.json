@@ -8,6 +8,8 @@
     "web": "expo start --web",
     "prebuild:tv": "EXPO_TV=1 expo prebuild --clean",
     "prebuild": "expo prebuild --clean",
+    "typecheck": "tsc --noEmit",
+    "checks": "tsx src/lib/checks.ts",
     "lint": "expo lint"
   },
   "dependencies": {
@@ -24,6 +26,7 @@
   "devDependencies": {
     "@react-native-tvos/config-tv": "^0.1.6",
     "@types/react": "~19.2.2",
+    "tsx": "^4.23.13",
     "typescript": "~6.0.3"
   },
   "private": true
