@@ -68,7 +68,7 @@ export function Account({ session, onSession, onImport, onBack, update, onUpdate
       onSession(s);
       setPassword('');
     } catch (e) {
-      setNotice((e as { message?: string }).message ?? 'Something went wrong');
+      setNotice((e as { message?: string }).message ?? 'couldn\u2019t sign in — try again');
     } finally {
       setBusy(false);
     }

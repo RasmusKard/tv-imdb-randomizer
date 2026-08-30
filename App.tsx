@@ -114,7 +114,7 @@ export default function App() {
         })
         .catch((e) => {
           if (e.name === 'AbortError') return;
-          setNotice('Could not reach the server');
+          setNotice('no answer — try again');
           setPending(false);
         });
     }, COUNT_DEBOUNCE_MS);
@@ -131,12 +131,15 @@ export default function App() {
 
   // Two UP presses can land before the re-render swaps in the verdict screen,
   // and both would pop the same queue: same title twice, count drained by two.
-  // Remotes bounce, so the second press inside a roll is ignored.
+  // Remotes bounce, so the second press inside a roll is ignored. `picking` is
+  // the same fact as state, so the button can say why presses are being eaten.
   const rolling = useRef(false);
+  const [picking, setPicking] = useState(false);
 
   const roll = useCallback(async () => {
     if (rolling.current) return;
     rolling.current = true;
+    setPicking(true);
     // a dead server must end in the notice, not in a button that feels broken —
     // OkHttp would bound it at ~10 s, and ten seconds of silence reads as broken
     const controller = new AbortController();
@@ -152,7 +155,7 @@ export default function App() {
             sessionRef.current?.token,
           );
         } catch {
-          setNotice('Could not reach the server');
+          setNotice('no answer — try again');
           setTitle(null);
           return;
         }
@@ -175,12 +178,13 @@ export default function App() {
       setCount((c) => (c === null ? c : c - 1));
       setNotice(null);
     } finally {
+      setPicking(false);
       clearTimeout(timer);
       rolling.current = false;
     }
   }, [queue, filters]);
 
-  // coming back from a verdict, focus belongs on Roll — that is where you left
+  // coming back from a verdict, focus belongs on the pick button — that is where you left
   // from, and it is one press from both rolling again and editing filters
   const [returned, setReturned] = useState(false);
   const toBoard = useCallback(() => {
@@ -241,6 +245,7 @@ export default function App() {
           setFilters={setFilters}
           count={count}
           pending={pending}
+          picking={picking}
           corpus={corpus}
           notice={notice}
           onRoll={roll}

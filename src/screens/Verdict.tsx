@@ -19,7 +19,7 @@ type Props = {
 /**
  * One answer, and the way back.
  *
- * Roll again is pre-focused so the lazy path is a single button, pressed
+ * Encore is pre-focused so the lazy path is a single button, pressed
  * repeatedly. The receipt strip along the bottom keeps the filters present
  * without putting them back on screen, and doubles as the way back to the board.
  */
@@ -77,7 +77,7 @@ export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Prop
 
           <View style={styles.actions}>
             <ActionButton
-              label="Roll again"
+              label="Encore"
               testID={testId.rollAgain}
               onPress={onRollAgain}
               hasTVPreferredFocus

@@ -15,13 +15,15 @@ type Props = {
   setFilters: (f: Filters) => void;
   /** Exact match count for the current filters, null until the debounced count lands. */
   count: number | null;
+  /** True while a roll's batch fetch is in flight, so the button can say so. */
+  picking: boolean;
   /** True while a newer count is in flight. */
   pending: boolean;
   /** The corpus total, unfiltered. Null until fetched once at mount. */
   corpus: number | null;
   notice: string | null;
   onRoll: () => void;
-  /** True when arriving back from a verdict, so Roll takes focus on mount. */
+  /** True when arriving back from a verdict, so the pick button takes focus on mount. */
   focusRoll?: boolean;
   /** The head-right chip: the account when signed in, sign-in when not. */
   accountLabel: string;
@@ -31,7 +33,7 @@ type Props = {
   onOpenUpdate: () => void;
 };
 
-export function Board({ filters, setFilters, count, pending, corpus, notice, onRoll, focusRoll, accountLabel, onOpenAccount, updateAvailable, onOpenUpdate }: Props) {
+export function Board({ filters, setFilters, count, picking, pending, corpus, notice, onRoll, focusRoll, accountLabel, onOpenAccount, updateAvailable, onOpenUpdate }: Props) {
   // Android's FocusFinder scores by centre distance, so a full-width slider is
   // unreachable from a left-hand chip however close it is. Every row that sits
   // next to a slider therefore names it explicitly. See GridRow.
@@ -70,7 +72,7 @@ export function Board({ filters, setFilters, count, pending, corpus, notice, onR
   // calls `requestFocus` on a false -> true transition (see
   // ReactViewManager.kt), so whichever key was pressed last really does
   // become the one true focus follows — same mechanism this board already
-  // used for Roll on returning from a verdict.
+  // used for the pick button on returning from a verdict.
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
 
   const toggleKind = (kind: TitleKind) => {
@@ -200,7 +202,7 @@ export function Board({ filters, setFilters, count, pending, corpus, notice, onR
             {[0, 1, 2].map((row) => (
               <GridRow
                 key={row}
-                // Roll spans columns 5-7, so its centre is far from column 1 and
+                // the pick button spans columns 5-7, so its centre is far from column 1 and
                 // geometry never finds it from the left of the last genre row
                 rowFocusDown={row === 2 ? rollNode : undefined}
               >
@@ -237,6 +239,7 @@ export function Board({ filters, setFilters, count, pending, corpus, notice, onR
         <Dock
           count={count}
           pending={pending}
+          picking={picking}
           notice={notice}
           onRoll={() => {
             closeEdit();
@@ -252,7 +255,7 @@ export function Board({ filters, setFilters, count, pending, corpus, notice, onR
 }
 
 /**
- * Counter, warning, Roll — on the same seven columns as everything above.
+ * Counter, warning, pick — on the same seven columns as everything above.
  *
  * The number is the exact match count, fetched on a debounce after the last
  * filter change — 8-47ms server-side, cheap enough to run per "I'm done
@@ -262,6 +265,7 @@ export function Board({ filters, setFilters, count, pending, corpus, notice, onR
 function Dock({
   count,
   pending,
+  picking,
   notice,
   onRoll,
   registerRoll,
@@ -269,6 +273,7 @@ function Dock({
 }: {
   count: number | null;
   pending: boolean;
+  picking: boolean;
   notice: string | null;
   onRoll: () => void;
   registerRoll: (node: View | null) => void;
@@ -276,7 +281,9 @@ function Dock({
 }) {
   const total = count ?? 0;
   const settled = count !== null && !pending;
-  const empty = count === 0;
+  // disable only on a *settled* zero: a stale count from before a filter change
+  // must not grey the button out for the pending gap and back
+  const empty = settled && count === 0;
 
   return (
     <View style={styles.dock}>
@@ -293,7 +300,8 @@ function Dock({
         {notice ? notice : empty ? 'Nothing in here — widen a range' : total < 40 ? 'Very thin' : ''}
       </Text>
       <ActionButton
-        label="Roll"
+        label={picking ? 'Picking…' : "Pick tonight's show"}
+        disabled={empty}
         testID={testId.roll}
         ref={registerRoll}
         hasTVPreferredFocus={focusRoll}
@@ -350,12 +358,22 @@ function RangeBlock({
   // value for the duration and only let it catch up once editing exits, so a
   // band lights up for landing on it, not for passing through it.
   const isEditing = editing !== null;
+  // While a slider is mid-edit, values are changing every notch — highlighting
+  // a band the moment its exact numbers are passed through would flash on and
+  // off as the handle keeps moving. Freeze the band row's own copy of the
+  // value for the duration and only let it catch up once editing exits, so a
+  // band lights up for landing on it, not for passing through it.
   const frozen = useRef(value);
   if (!isEditing) frozen.current = value;
   const bandValue = isEditing ? frozen.current : value;
 
+  // the OK-walk is the one convention nothing on screen teaches; borrow the
+  // genres aside slot to say it, but only while this slider is armed — once
+  // the sequence is known the hint is noise
+  const hint = isEditing ? 'ok: lower · upper · done — arrows adjust' : undefined;
+
   return (
-    <Block label={axis.label}>
+    <Block label={axis.label} aside={hint}>
       <RangeSlider
         axis={axis}
         value={value}

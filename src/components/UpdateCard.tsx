@@ -45,7 +45,7 @@ export function UpdateCard({ info, testID = 'update-card', onHandedOff, onError 
         <Text style={styles.version} testID={`${testID}-version`}>
           {info.versionName}
         </Text>
-        <Text style={styles.channelNote}>install unknown apps is asked for once, by Android</Text>
+        <Text style={styles.channelNote}>android asks once to allow installs</Text>
       </View>
 
       {info.changelog.length > 0 && (

@@ -8,6 +8,8 @@ type Props = {
   label: string;
   /** ghost is the secondary action; it fills in on focus rather than at rest. */
   variant?: 'solid' | 'ghost';
+  /** Unavailable: stays focusable — an unfocusable cell would trap D-pad nav — but reads dim and inert. */
+  disabled?: boolean;
   testID: string;
   onPress: () => void;
   /** Roll fires its prefetch from here: one request per "I'm done fiddling". */
@@ -20,6 +22,7 @@ type Props = {
 export function ActionButton({
   label,
   variant = 'solid',
+  disabled = false,
   testID,
   onPress,
   onFocus,
@@ -33,13 +36,19 @@ export function ActionButton({
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={label}
-      onPress={onPress}
+      accessibilityState={{ disabled }}
+      onPress={disabled ? undefined : onPress}
       onFocus={onFocus}
       hasTVPreferredFocus={hasTVPreferredFocus}
       style={({ focused }) => [
         styles.base,
-        variant === 'solid' ? styles.solid : styles.ghost,
-        focused && (variant === 'solid' ? styles.solidFocused : styles.ghostFocused),
+        disabled
+          ? styles.disabled
+          : variant === 'solid'
+            ? styles.solid
+            : styles.ghost,
+        disabled && focused && styles.disabledFocused,
+        !disabled && focused && (variant === 'solid' ? styles.solidFocused : styles.ghostFocused),
         style,
       ]}
     >
@@ -47,7 +56,11 @@ export function ActionButton({
         <Text
           style={[
             styles.label,
-            variant === 'ghost' && !focused ? styles.labelGhost : styles.labelSolid,
+            disabled
+              ? styles.labelDisabled
+              : variant === 'ghost' && !focused
+                ? styles.labelGhost
+                : styles.labelSolid,
           ]}
         >
           {label}
@@ -69,6 +82,11 @@ const styles = StyleSheet.create({
   // readable focus signal on a large filled shape
   solid: { backgroundColor: colors.sodiumDim, borderColor: colors.sodiumDim },
   ghost: { backgroundColor: 'transparent', borderColor: colors.sodium },
+  // unavailable: no lamp at all — transparent face, slat edge, dim ink. Focus
+  // still shows a ring (the cell must answer the D-pad) but nothing brightens
+  // or lifts, so the button reads as reached-but-inert
+  disabled: { backgroundColor: 'transparent', borderColor: colors.slatHi },
+  disabledFocused: { borderColor: colors.sodium },
   solidFocused: {
     backgroundColor: colors.sodium,
     borderColor: colors.chalk,
@@ -79,4 +97,5 @@ const styles = StyleSheet.create({
   label: display(28, { em: 0.12, caps: true, fontWeight: '800' }),
   labelSolid: { color: colors.onSodium },
   labelGhost: { color: colors.sodium },
+  labelDisabled: { color: colors.dim },
 });
