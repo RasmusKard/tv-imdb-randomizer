@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { BackHandler, Pressable, StyleSheet, Text, useTVEventHandler, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 import type { Axis } from '../config/filters';
 import { nudge } from '../lib/range';
-import { colors, layout, mono, s } from '../theme';
+import { colors, layout, mono, monoBold, s } from '../theme';
 
 export type Editing = null | 0 | 1;
 
@@ -273,14 +274,32 @@ function handlePositions(xLo: number, xHi: number) {
   return { loLeft, hiLeft };
 }
 
+/** The handle's arrows, drawn rather than typed: Unicode glyphs never stand
+ * in for an icon system. */
+function Chevron({ dir }: { dir: -1 | 1 }) {
+  const size = s(11);
+  return (
+    <Svg width={size} height={size} viewBox="0 0 10 10">
+      <Path
+        d={dir === -1 ? 'M6.5 1.5 L3 5 L6.5 8.5' : 'M3.5 1.5 L7 5 L3.5 8.5'}
+        stroke={colors.onSodium}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </Svg>
+  );
+}
+
 function Handle({ text, left, mode }: { text: string; left: number; mode: HandleMode }) {
   const live = mode === 'live';
 
   return (
     <View style={[styles.handle, { left: left + PAD_H }, handleState[mode]]}>
-      {live ? <Text style={styles.arrow}>◀</Text> : null}
+      {live ? <Chevron dir={-1} /> : null}
       <Text style={[styles.handleText, live && styles.handleTextLive]}>{text}</Text>
-      {live ? <Text style={styles.arrow}>▶</Text> : null}
+      {live ? <Chevron dir={1} /> : null}
     </View>
   );
 }
@@ -334,9 +353,8 @@ const styles = StyleSheet.create({
     borderRadius: layout.radius,
     backgroundColor: colors.slatHi,
   },
-  handleText: mono(26, { fontWeight: '700', color: colors.chalk }),
+  handleText: monoBold(26, { color: colors.chalk }),
   handleTextLive: { color: colors.onSodium },
-  arrow: mono(22, { fontWeight: '700', color: colors.onSodium }),
 });
 
 const handleState = StyleSheet.create({

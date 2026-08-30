@@ -1,6 +1,7 @@
 {
   "expo": {
     "plugins": [
+      "./plugins/esc-to-back",
       [
         "@react-native-tvos/config-tv",
         {

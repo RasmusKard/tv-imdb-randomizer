@@ -14,7 +14,7 @@ A solo power user with strong taste: one person drives the remote, tunes precise
 
 ## Product Purpose
 
-what.watch ends the "what do we watch tonight" scroll by filtering a 534,836-title IMDb corpus on a D-pad-first board, then rolling one title at a time — never repeating within a session — onto a verdict screen. The primary action is labelled in the marquee's voice ("Pick tonight's show" on the board, "Encore" for another). Success: the user presses it, gets one confident answer, and watches it. The browsing session itself is what gets deleted.
+what.watch ends the "what do we watch tonight" scroll by filtering a 534,836-title IMDb corpus on a D-pad-first board, then rolling one title at a time — never repeating within a session — onto a verdict screen. The primary action is labelled in plain action words ("Pick tonight's show" on the board, "Pick another" on a verdict). Success: the user presses it, gets one confident answer, and watches it. The browsing session itself is what gets deleted.
 
 ## Positioning
 

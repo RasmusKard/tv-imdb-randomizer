@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { BackHandler, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AccessibilityInfo, BackHandler, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { fetchWatched, login, register, type Session } from '../api/auth';
 import { ActionButton } from '../components/ActionButton';
 import { UpdateCard } from '../components/UpdateCard';
 import type { UpdateInfo } from '../update/compare';
 import { checkForUpdate, installedVersion } from '../update/checker';
-import { colors, display, layout, mono, s, screen } from '../theme';
+import { colors, displayHeavy, layout, mono, s, screen } from '../theme';
 
 type Props = {
   session: Session | null;
@@ -25,20 +25,35 @@ type Props = {
  * fields, since the server's register is login-plus-signup anyway.
  */
 export function Account({ session, onSession, onImport, onBack, update, onUpdate }: Props) {
-  // back returns to the board — it works signed out, so there is nothing to confirm
-  useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      onBack();
-      return true;
-    });
-    return () => sub.remove();
-  }, [onBack]);
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // account notices change silently otherwise; announce them for TalkBack
+  useEffect(() => {
+    if (notice) AccessibilityInfo.announceForAccessibility(notice);
+  }, [notice]);
+
+  // A TV TextInput that holds focus eats the D-pad for its caret, so the
+  // fields are rows first: OK opens one for typing, back or DONE closes it —
+  // the same walk-in/walk-out grammar the slider uses.
+  const [editing, setEditing] = useState<'email' | 'password' | null>(null);
+
+  // back closes an open field before it leaves the screen; on the board it
+  // exits without a confirmation, which is what the Android TV guidance asks for
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (editing) {
+        setEditing(null);
+        return true;
+      }
+      onBack();
+      return true;
+    });
+    return () => sub.remove();
+  }, [editing, onBack]);
 
   const [watchedCount, setWatchedCount] = useState<number | null>(null);
   useEffect(() => {
@@ -58,7 +73,7 @@ export function Account({ session, onSession, onImport, onBack, update, onUpdate
 
   const submit = useCallback(async () => {
     if (busy || !email.includes('@') || password.length < 1) {
-      setNotice('Enter an email and a password');
+      setNotice('enter an email and a password');
       return;
     }
     setBusy(true);
@@ -91,9 +106,9 @@ export function Account({ session, onSession, onImport, onBack, update, onUpdate
     try {
       const found = await checkForUpdate({ force: true });
       onUpdate(found);
-      if (!found) setNotice('Up to date');
+      if (!found) setNotice('up to date');
     } catch (e) {
-      setNotice((e as { message?: string }).message ?? 'Update check failed');
+      setNotice((e as { message?: string }).message ?? 'couldn\u2019t check — try again');
     } finally {
       setChecking(false);
     }
@@ -118,7 +133,7 @@ export function Account({ session, onSession, onImport, onBack, update, onUpdate
               <Text style={styles.value}>{watchedCount !== null ? group(watchedCount) : '—'}</Text>
             </Row>
             <View style={styles.row}>
-              <ActionButton label="Import CSV" testID="account-import" onPress={onImport} style={styles.wide} />
+              <ActionButton label="Import CSV" testID="account-import" onPress={onImport} style={styles.wide} hasTVPreferredFocus />
             </View>
             <View style={styles.row}>
               <ActionButton label="Sign out" variant="ghost" testID="account-signout" onPress={signOut} style={styles.wide} />
@@ -127,27 +142,50 @@ export function Account({ session, onSession, onImport, onBack, update, onUpdate
         ) : (
           <View style={styles.form}>
             <Row label="Email">
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                autoComplete="email"
-                keyboardType="email-address"
-                placeholder="you@example.com"
-                placeholderTextColor={colors.dimmer}
+              <Field
+                open={editing === 'email'}
+                onOpen={() => setEditing('email')}
                 testID="account-email"
-              />
+                label="Email"
+                initialFocus
+              >
+                <TextInput
+                  style={styles.input}
+                  value={email}
+                  onChangeText={setEmail}
+                  editable={editing === 'email'}
+                  focusable={editing === 'email'}
+                  pointerEvents={editing === 'email' ? 'auto' : 'none'}
+                  hasTVPreferredFocus={editing === 'email'}
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  keyboardType="email-address"
+                  placeholder="you@example.com"
+                  placeholderTextColor={colors.dim}
+                  onSubmitEditing={() => setEditing(null)}
+                />
+              </Field>
             </Row>
             <Row label="Password">
-              <TextInput
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                autoCapitalize="none"
+              <Field
+                open={editing === 'password'}
+                onOpen={() => setEditing('password')}
                 testID="account-password"
-              />
+                label="Password"
+              >
+                <TextInput
+                  style={styles.input}
+                  value={password}
+                  onChangeText={setPassword}
+                  editable={editing === 'password'}
+                  focusable={editing === 'password'}
+                  pointerEvents={editing === 'password' ? 'auto' : 'none'}
+                  hasTVPreferredFocus={editing === 'password'}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  onSubmitEditing={() => setEditing(null)}
+                />
+              </Field>
             </Row>
             <View style={styles.row}>
               <ActionButton
@@ -172,7 +210,7 @@ export function Account({ session, onSession, onImport, onBack, update, onUpdate
             <UpdateCard
               info={update}
               testID="update-card"
-              onHandedOff={() => setNotice('Installer opened — confirm it there')}
+              onHandedOff={() => setNotice('installer opened — confirm it there')}
               onError={setNotice}
             />
           </View>
@@ -199,6 +237,43 @@ export function Account({ session, onSession, onImport, onBack, update, onUpdate
   );
 }
 
+/**
+ * A field row: the D-pad target, not the input itself. OK opens the input for
+ * typing (the row lights while open); back or DONE closes it and focus comes
+ * back to the row, so the pad never gets trapped in a caret. The email row
+ * takes the screen's initial focus — a restored task lands here with no view
+ * focused at all, and arrows do nothing without an anchor.
+ */
+function Field({
+  open,
+  onOpen,
+  testID,
+  label,
+  initialFocus,
+  children,
+}: {
+  open: boolean;
+  onOpen: () => void;
+  testID: string;
+  label: string;
+  initialFocus?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <Pressable
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ expanded: open }}
+      onPress={onOpen}
+      hasTVPreferredFocus={initialFocus}
+      style={({ focused }) => [styles.inputRow, (focused || open) && styles.inputRowOpen]}
+    >
+      {children}
+    </Pressable>
+  );
+}
+
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <View style={styles.fieldRow}>
@@ -219,7 +294,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.slatHi,
   },
-  wordmark: display(32, { em: -0.03, fontWeight: '800', color: colors.chalk }),
+  wordmark: displayHeavy(32, { em: -0.03, color: colors.chalk }),
   wordmarkDot: { color: colors.sodium },
 
   form: { paddingTop: s(24), gap: s(18), width: layout.span(4) },
@@ -227,11 +302,15 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: layout.gap },
   wide: { flex: 1 },
   value: mono(30, { color: colors.chalk }),
-  input: {
-    backgroundColor: colors.slat,
-    borderColor: colors.slatHi,
+  // the row owns the chrome: it is the focus target, and it lights when open
+  inputRow: {
     borderWidth: layout.border,
+    borderColor: colors.slatHi,
     borderRadius: layout.radius,
+    backgroundColor: colors.slat,
+  },
+  inputRowOpen: { borderColor: colors.sodium },
+  input: {
     color: colors.chalk,
     fontSize: s(30),
     paddingHorizontal: s(16),

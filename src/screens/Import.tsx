@@ -10,7 +10,7 @@ import { extractImdbIds } from '../lib/csv';
 import { ActionButton } from '../components/ActionButton';
 import { GridRow } from '../components/GridRow';
 import { startUploadServer, type UploadOutcome } from '../server/uploadServer';
-import { colors, display, layout, mono, s, screen } from '../theme';
+import { colors, displayHeavy, layout, mono, s, screen } from '../theme';
 
 type Props = {
   session: Session;
@@ -67,7 +67,7 @@ export function Import({ session, onBack, onImported }: Props) {
         } catch (e) {
           const message = (e as { message?: string }).message ?? 'push failed';
           addLog(`${source}: ${message}`, 'err');
-          return { ok: false, error: message === 'watched push failed: 401' ? 'Signed out or expired — sign in again' : message };
+          return { ok: false, error: message === 'watched push failed: 401' ? 'signed out or expired — sign in again' : message };
         }
       };
       const next = chain.current.then(run, run);
@@ -188,7 +188,7 @@ export function Import({ session, onBack, onImported }: Props) {
                 onChangeText={setPasteText}
                 multiline
                 placeholder="paste the contents of ratings.csv here"
-                placeholderTextColor={colors.dimmer}
+                placeholderTextColor={colors.dim}
                 testID="import-paste-input"
               />
             ) : null}
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.slatHi,
   },
-  wordmark: display(32, { em: -0.03, fontWeight: '800', color: colors.chalk }),
+  wordmark: displayHeavy(32, { em: -0.03, color: colors.chalk }),
   wordmarkDot: { color: colors.sodium },
   label: mono(26, { em: 0.2, caps: true, color: colors.dim }),
 

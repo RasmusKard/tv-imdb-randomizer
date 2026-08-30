@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { ActionButton } from './ActionButton';
-import { colors, display, layout, mono, s } from '../theme';
+import { colors, displayHeavy, layout, mono, s } from '../theme';
 import type { UpdateInfo } from '../update/compare';
 import { downloadUpdate, installUpdate } from '../update/installer';
 
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     gap: s(12),
   },
   head: { gap: s(4) },
-  version: display(32, { em: -0.02, fontWeight: '800', color: colors.sodium }),
+  version: displayHeavy(32, { em: -0.02, color: colors.sodium }),
   channelNote: mono(22, { em: 0.1, caps: true, color: colors.dimmer }),
 
   changelog: { gap: s(4) },

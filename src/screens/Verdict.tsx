@@ -1,11 +1,14 @@
+import { useEffect, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import type { Filters, GenreState, Title } from '../api/types';
 import { kindOf } from '../api/client';
 import { AXES, RANGE_KEYS, testId } from '../config/filters';
 import { isWholeAxis } from '../lib/range';
+import { useReduceMotion } from '../lib/motion';
 import { ActionButton } from '../components/ActionButton';
-import { colors, display, layout, mono, s, screen } from '../theme';
+import { colors, displayHeavy, layout, mono, monoBold, s, screen } from '../theme';
 
 type Props = {
   title: Title;
@@ -16,16 +19,36 @@ type Props = {
   onBack: () => void;
 };
 
+/** Each leader countdown step is a hard cut — no Animated, no easing. */
+const THREAD_STEP_MS = 240;
+
 /**
  * One answer, and the way back.
  *
- * Encore is pre-focused so the lazy path is a single button, pressed
- * repeatedly. The receipt strip along the bottom keeps the filters present
- * without putting them back on screen, and doubles as the way back to the board.
+ * The screen is a projected frame: sprocket strips along its edges, one warm
+ * gate light under the title. The arrival is
+ * a three-step leader countdown in hard cuts, skipped whole under
+ * reduce-motion — and Pick another is pre-focused so the lazy path is a single
+ * button, pressed repeatedly. The leader tape along the bottom keeps the
+ * filters present without putting them back on screen, and doubles as the way
+ * back to the board.
  */
 export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Props) {
   const isSeries = kindOf(title.titleType) === 'series';
   const kindLabel = isSeries ? 'Series' : 'Movie';
+  const reduceMotion = useReduceMotion();
+
+  // the thread-up: 3 → 2 → 1 → the feature. Zero means the print is running.
+  const [thread, setThread] = useState(3);
+  useEffect(() => {
+    if (reduceMotion) {
+      setThread(0);
+      return;
+    }
+    if (thread === 0) return;
+    const t = setTimeout(() => setThread(thread - 1), THREAD_STEP_MS);
+    return () => clearTimeout(t);
+  }, [thread, reduceMotion]);
 
   const meta = [
     String(title.startYear),
@@ -37,87 +60,158 @@ export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Prop
   ].filter((m): m is string => m !== null);
 
   return (
-    <View style={[screen.root, screen.safe]}>
-      <View style={styles.grid}>
-        <View style={styles.main}>
-          <View style={styles.metaLine}>
-            <Text style={styles.score}>
-              {title.averageRating.toFixed(1)}
-              <Text style={styles.star}> ★</Text>
-            </Text>
-            {meta.flatMap((m) => [
-              <View key={`${m}-tick`} style={styles.tick} />,
-              <Text key={m} style={styles.metaText}>
-                {m}
-              </Text>,
-            ])}
-          </View>
+    <View style={screen.root}>
+      <Gate />
+      <Sprockets top />
+      <Sprockets />
 
-          <Text
-            testID="verdict-title"
-            style={[styles.title, title.primaryTitle.length > 18 && styles.titleLong]}
-            numberOfLines={2}
-          >
-            {title.primaryTitle}
-          </Text>
-
-          <View style={styles.tags}>
-            {title.genres.map((g) => (
-              <Text key={g} style={styles.tag}>
-                {g}
+      <View style={screen.safe}>
+        <View style={styles.grid}>
+          <View style={styles.main}>
+            <View style={styles.metaLine}>
+              <Text style={styles.score}>
+                {title.averageRating.toFixed(1)}
+                <Text style={styles.star}> ★</Text>
               </Text>
-            ))}
-          </View>
+              {meta.flatMap((m) => [
+                <View key={`${m}-tick`} style={styles.tick} />,
+                <Text key={m} style={styles.metaText}>
+                  {m}
+                </Text>,
+              ])}
+            </View>
 
-          {title.plot ? (
-            <Text style={styles.plot} numberOfLines={3}>
-              {title.plot}
+            <Text
+              testID="verdict-title"
+              style={[styles.title, title.primaryTitle.length > 18 && styles.titleLong]}
+              numberOfLines={2}
+            >
+              {title.primaryTitle}
             </Text>
-          ) : null}
 
-          <View style={styles.actions}>
-            <ActionButton
-              label="Encore"
-              testID={testId.rollAgain}
-              onPress={onRollAgain}
-              hasTVPreferredFocus
-              style={styles.action}
-            />
-            <ActionButton
-              label="IMDb"
-              variant="ghost"
-              testID={testId.imdb}
-              // a TV without a browser just fails the open; that is still better
-              // than a button that pretends to work and does nothing
-              onPress={() => Linking.openURL(`https://www.imdb.com/title/${title.tconst}/`).catch(() => {})}
-              style={styles.action}
-            />
+            <View style={styles.tags}>
+              {title.genres.map((g) => (
+                <Text key={g} style={styles.tag}>
+                  {g}
+                </Text>
+              ))}
+            </View>
+
+            {title.plot ? (
+              <Text style={styles.plot} numberOfLines={3}>
+                {title.plot}
+              </Text>
+            ) : null}
+
+            <View style={styles.actions}>
+              <ActionButton
+                label="Pick another"
+                testID={testId.rollAgain}
+                onPress={onRollAgain}
+                hasTVPreferredFocus
+                style={styles.action}
+              />
+              <ActionButton
+                label="IMDb"
+                variant="ghost"
+                testID={testId.imdb}
+                // a TV without a browser just fails the open; that is still better
+                // than a button that pretends to work and does nothing
+                onPress={() => Linking.openURL(`https://www.imdb.com/title/${title.tconst}/`).catch(() => {})}
+                style={styles.action}
+              />
+            </View>
+          </View>
+
+          {/* Stands in for the TMDB artwork, which has nothing to load yet. */}
+          <View style={styles.poster}>
+            <Text style={styles.posterKind}>{kindLabel}</Text>
+            <Reel />
+            <View style={styles.posterFoot}>
+              <Text style={styles.posterScore}>{title.averageRating.toFixed(1)} ★</Text>
+              <Text style={styles.posterId}>{title.tconst}</Text>
+            </View>
           </View>
         </View>
 
-        {/* Stands in for the TMDB backdrop, which has nothing to load yet. */}
-        <View style={styles.poster}>
-          <Text style={styles.posterKind}>{kindLabel}</Text>
-          <Text style={styles.posterTitle} numberOfLines={4}>
-            {title.primaryTitle}
-          </Text>
-          <View style={styles.posterFoot}>
-            <Text style={styles.posterScore}>{title.averageRating.toFixed(1)} ★</Text>
-            <Text style={styles.posterId}>{title.tconst}</Text>
-          </View>
-        </View>
+        <Receipt filters={filters} remaining={remaining} onPress={onBack} />
       </View>
 
-      <Receipt filters={filters} remaining={remaining} onPress={onBack} />
+      {thread > 0 && (
+        <View style={styles.leader} pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants">
+          <View style={styles.leaderRing} />
+          <Text style={styles.leaderNum}>{thread}</Text>
+        </View>
+      )}
     </View>
   );
 }
 
 /**
- * The active filters, and the way back. Spans all seven columns.
+ * The room lit by the screen itself: one warm cone from the gate below, a
+ * faint emulsion wash above, and a broad soft bloom sitting behind the title
+ * — the gate light in the room, drawn as light rather than a text shadow,
+ * because an Android text shadow ends in a visible edge. Volumetric light
+ * through the room, never a neon edge on anything.
+ */
+function Gate() {
+  return (
+    <Svg
+      pointerEvents="none"
+      width="100%"
+      height="100%"
+      style={StyleSheet.absoluteFill}
+    >
+      <Defs>
+        <RadialGradient id="gate" cx="50%" cy="118%" r="95%">
+          <Stop offset="0%" stopColor={colors.sodium} stopOpacity={0.1} />
+          <Stop offset="55%" stopColor={colors.sodium} stopOpacity={0} />
+        </RadialGradient>
+        <RadialGradient id="wash" cx="24%" cy="16%" r="75%">
+          <Stop offset="0%" stopColor={colors.chalk} stopOpacity={0.05} />
+          <Stop offset="70%" stopColor={colors.chalk} stopOpacity={0} />
+        </RadialGradient>
+        <RadialGradient id="bloom" cx="33%" cy="42%" r="46%">
+          <Stop offset="0%" stopColor={colors.chalk} stopOpacity={0.1} />
+          <Stop offset="55%" stopColor={colors.chalk} stopOpacity={0.045} />
+          <Stop offset="100%" stopColor={colors.chalk} stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Rect width="100%" height="100%" fill="url(#gate)" />
+      <Rect width="100%" height="100%" fill="url(#wash)" />
+      <Rect width="100%" height="100%" fill="url(#bloom)" />
+    </Svg>
+  );
+}
+
+/** A strip of film holes, top and bottom: the frame the screen is. */
+function Sprockets({ top }: { top?: boolean }) {
+  return (
+    <View pointerEvents="none" style={[styles.sprocketRow, top ? styles.sprocketTop : styles.sprocketBottom]}>
+      {Array.from({ length: 30 }, (_, i) => (
+        <View key={i} style={styles.sprocket} />
+      ))}
+    </View>
+  );
+}
+
+/** The reel standing in for the one-sheet, until TMDB artwork lands. */
+function Reel() {
+  return (
+    <View style={styles.reel}>
+      <View style={styles.reelRim} />
+      <View style={styles.reelMid} />
+      <View style={styles.reelCore} />
+    </View>
+  );
+}
+
+/**
+ * The active filters, and the way back. Spans all seven columns as a strip
+ * of leader tape.
  *
- * Include and exclude keep their colours from the board — amber and cyan — so
- * the strip reads as the same information, not a restatement of it.
+ * Include and exclude keep their colours from the board — amber and cue cyan —
+ * so the tape reads as the same information, not a restatement of it.
  */
 function Receipt({
   filters,
@@ -166,40 +260,52 @@ const styles = StyleSheet.create({
   grid: { flex: 1, flexDirection: 'row', gap: layout.gap },
   main: { width: layout.span(5) },
 
-  metaLine: { flexDirection: 'row', alignItems: 'center', gap: s(20) },
+  // the frame's own edges — full bleed: the film runs off the screen
+  sprocketRow: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: s(22),
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+    backgroundColor: 'rgba(232,230,220,0.05)',
+  },
+  sprocketTop: { top: s(52) },
+  sprocketBottom: { bottom: s(52) },
+  sprocket: { width: s(18), height: s(13), borderRadius: s(3), backgroundColor: colors.boardLo },
+
+  metaLine: { flexDirection: 'row', alignItems: 'center', gap: s(20), marginTop: s(18) },
   tick: { width: StyleSheet.hairlineWidth, height: s(28), backgroundColor: colors.slatHi },
-  score: mono(42, { fontWeight: '700', color: colors.sodium }),
-  star: { fontSize: s(22) },
+  score: monoBold(44, { color: colors.sodium }),
+  star: { fontSize: s(24) },
   metaText: mono(24, { em: 0.2, caps: true, color: colors.dim }),
 
-  title: display(94, {
-    em: -0.035,
+  // the title stands in the gate light: silver emulsion, the bloom drawn as
+  // room light in the Gate gradient — no text shadow, which ends in a seam
+  title: displayHeavy(136, {
+    em: -0.02,
     caps: true,
-    fontWeight: '800',
     color: colors.chalk,
-    marginTop: s(14),
+    marginTop: s(16),
   }),
-  titleLong: display(68, { em: -0.03 }),
+  titleLong: displayHeavy(88, { em: -0.02 }),
 
-  tags: { flexDirection: 'row', gap: s(10), marginTop: s(22) },
-  tag: mono(24, {
+  tags: { flexDirection: 'row', gap: s(18), marginTop: s(30) },
+  tag: mono(23, {
     em: 0.16,
     caps: true,
-    color: colors.chalk,
-    backgroundColor: colors.slat,
-    paddingHorizontal: s(14),
-    paddingVertical: s(8),
+    color: colors.dim,
+    borderWidth: s(1),
+    borderColor: colors.slatHi,
+    paddingHorizontal: s(20),
+    paddingVertical: s(9),
     borderRadius: s(2),
     overflow: 'hidden',
   }),
-  plot: display(32, {
-    lineHeight: s(46),
-    color: colors.dim,
-    marginTop: s(26),
-    maxWidth: layout.span(4),
-  }),
+  plot: mono(26, { lineHeight: 42, color: colors.dim, marginTop: s(26), maxWidth: layout.span(4) }),
 
-  actions: { marginTop: 'auto', flexDirection: 'row', gap: layout.gap, paddingBottom: s(20) },
+  actions: { marginTop: 'auto', flexDirection: 'row', gap: s(28), paddingBottom: s(20) },
   action: { width: layout.span(2) },
 
   poster: {
@@ -210,26 +316,52 @@ const styles = StyleSheet.create({
     backgroundColor: colors.slat,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.slatHi,
+    alignItems: 'center',
   },
-  posterKind: mono(24, { em: 0.24, caps: true, color: colors.dim }),
-  posterTitle: display(54, {
-    em: -0.03,
-    caps: true,
-    fontWeight: '800',
-    color: colors.chalk,
-    marginTop: 'auto',
-  }),
+  posterKind: mono(22, { em: 0.24, caps: true, color: colors.dim }),
+  reel: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  reelRim: {
+    width: s(190),
+    height: s(190),
+    borderRadius: s(95),
+    borderWidth: s(3),
+    borderColor: 'rgba(232,230,220,0.22)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reelMid: {
+    width: s(122),
+    height: s(122),
+    borderRadius: s(61),
+    borderWidth: s(3),
+    borderColor: 'rgba(232,230,220,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reelCore: {
+    width: s(46),
+    height: s(46),
+    borderRadius: s(23),
+    borderWidth: s(3),
+    borderColor: 'rgba(255,176,46,0.55)',
+    shadowColor: colors.sodium,
+    shadowOpacity: 0.3,
+    shadowRadius: s(30),
+    elevation: 6,
+  },
   posterFoot: {
-    marginTop: s(22),
+    marginTop: 'auto',
     paddingTop: s(16),
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.slatHi,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignSelf: 'stretch',
   },
-  posterScore: mono(24, { color: colors.sodium }),
+  posterScore: monoBold(24, { color: colors.sodium }),
   posterId: mono(24, { color: colors.dim }),
 
+  // leader tape: one step above the unlit ground, amber ink for the count
   receipt: {
     width: '100%',
     height: s(76),
@@ -241,11 +373,32 @@ const styles = StyleSheet.create({
     borderRadius: layout.radius,
     borderWidth: layout.border,
     borderColor: colors.slatHi,
-    backgroundColor: colors.boardLo,
+    backgroundColor: colors.tape,
   },
   receiptFocused: { borderColor: colors.sodium },
-  receiptText: mono(24, { em: 0.08, caps: true, color: colors.chalk, flexShrink: 1 }),
+  receiptText: mono(24, { em: 0.08, caps: true, color: colors.dim, flexShrink: 1 }),
   inc: { color: colors.sodium },
-  exc: { color: colors.cold },
-  receiptLeft: mono(26, { em: 0.08, caps: true, color: colors.sodium }),
+  exc: { color: colors.cold, textDecorationLine: 'line-through' },
+  receiptLeft: monoBold(26, { em: 0.08, caps: true, color: colors.sodium }),
+
+  // the thread-up: opaque leader replaces the frame, numeral in a ring
+  leader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.board,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  leaderRing: {
+    position: 'absolute',
+    width: s(240),
+    height: s(240),
+    borderRadius: s(120),
+    borderWidth: s(2),
+    borderColor: 'rgba(232,230,220,0.25)',
+  },
+  leaderNum: displayHeavy(150, { color: 'rgba(232,230,220,0.8)' }),
 });

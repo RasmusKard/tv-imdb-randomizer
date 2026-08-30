@@ -1,6 +1,34 @@
+/**
+ * DIRECTION CONTRACT — The Projection Booth at Showtime
+ *
+ * THESIS: what.watch as a projection booth at showtime — the screen is a
+ * projected frame, the roll is a thread-up. Refuses poster-carousel streaming
+ * chrome.
+ * OWN-WORLD: film-black ground; one tungsten amber carries all light;
+ * emulsion-white Archivo caps; sprocket-strip frame edges; motion
+ * in hard steps, never easing; states as mark patterns, never hue alone.
+ * STORY: the viewer tunes filters, presses pick, a leader countdown clears,
+ * and tonight's title stands in gate light; leader tape remembers the filters.
+ * FIRST VIEWPORT: verdict — sprockets frame top and bottom, meta rules, one giant silver title in warm gate glow,
+ * tags, plot, Pick another + IMDb, reel poster right, leader-tape receipt below.
+ * FORM: The Projection Booth at Showtime, candidate 5 of 7, seed 15068fbf.
+ * FINISH: unreviewed and undocumented is unfinished; this build ends with the
+ * finish review, the verdict, DESIGN.md, and every shipping raster carrying
+ * its provenance.
+ */
+
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BackHandler } from 'react-native';
+import { AccessibilityInfo, BackHandler } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
+import {
+  Archivo_800ExtraBold,
+} from '@expo-google-fonts/archivo';
+import {
+  ChivoMono_400Regular,
+  ChivoMono_700Bold,
+} from '@expo-google-fonts/chivo-mono';
 
 import { buildQuery, fetchBatch, fetchCount, setUnauthorizedHandler, withShown } from './src/api/client';
 import { loadSession, saveSession, clearSession, type Session } from './src/api/auth';
@@ -12,6 +40,10 @@ import { Account } from './src/screens/Account';
 import { Import } from './src/screens/Import';
 import { checkForUpdate } from './src/update/checker';
 import type { UpdateInfo } from './src/update/compare';
+
+// the splash holds until the booth's own faces are in, so the first frame
+// anyone sees is already the committed world
+SplashScreen.preventAutoHideAsync();
 
 /**
  * Three screens, no deep links, and the verdict overlaying whichever of them
@@ -30,6 +62,19 @@ const COUNT_DEBOUNCE_MS = 250;
 const ROLL_TIMEOUT_MS = 4000;
 
 export default function App() {
+  const [fontsLoaded, fontError] = useFonts({
+    Archivo800: Archivo_800ExtraBold,
+    ChivoMono400: ChivoMono_400Regular,
+    ChivoMono700: ChivoMono_700Bold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      if (fontError) console.warn('fonts failed to load', fontError);
+      SplashScreen.hide();
+    }
+  }, [fontsLoaded, fontError]);
+
   const [filters, setFiltersState] = useState<Filters>(INITIAL);
   const [screen, setScreen] = useState<'board' | 'account' | 'import'>('board');
 
@@ -94,6 +139,11 @@ export default function App() {
   const [queue, setQueue] = useState<Title[]>([]);
   const [title, setTitle] = useState<Title | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // a notice that only re-renders is silent to TalkBack: announce it instead
+  useEffect(() => {
+    if (notice) AccessibilityInfo.announceForAccessibility(notice);
+  }, [notice]);
 
   useEffect(() => {
     fetchCount('', undefined, sessionRef.current?.token).then(setCorpus).catch(() => {});
@@ -216,6 +266,9 @@ export default function App() {
     });
     return () => sub.remove();
   }, [title, toBoard]);
+
+  // the splash still covers the screen while fonts land
+  if (!fontsLoaded && !fontError) return null;
 
   return (
     <>

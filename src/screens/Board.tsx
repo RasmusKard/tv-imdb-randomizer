@@ -8,7 +8,7 @@ import { AXES, GENRES, KINDS, testId, type RangeKey } from '../config/filters';
 import { Chip, type ChipState } from '../components/Chip';
 import { GridRow } from '../components/GridRow';
 import { RangeSlider, type Editing } from '../components/RangeSlider';
-import { COLS, colors, display, layout, mono, s, screen } from '../theme';
+import { COLS, colors, displayHeavy, layout, mono, s, screen } from '../theme';
 
 type Props = {
   filters: Filters;
@@ -103,17 +103,30 @@ export function Board({ filters, setFilters, count, picking, pending, corpus, no
     return state === 'include' ? 'on' : state === 'exclude' ? 'excluded' : 'off';
   };
 
+  // the counter answers the same question everywhere: how many picks remain
+  // for these filters, and is that number the settled truth
+  const total = count ?? 0;
+  const settled = count !== null && !pending;
+
   return (
     <View style={screen.root}>
-      <ColumnRules />
-
       <View style={screen.safe}>
         <View style={styles.head}>
           <Text style={styles.wordmark}>
             what<Text style={styles.wordmarkDot}>.</Text>watch
           </Text>
           <View style={styles.headRight}>
-            <Text style={styles.label}>{corpus !== null ? `${groupThousands(corpus)} titles in the corpus` : ''}</Text>
+            {/* the counter lives in the corner: it is feedback, not a control,
+                and the dock belongs to the action and its warnings. The corpus
+                rides beside it, small and quiet — context for those looking
+                for it, invisible to those who are not */}
+            <View style={styles.counter} testID="dock-count" accessible accessibilityLabel={`${total} titles left`}>
+              <Text style={styles.dockLabel}>Titles left:</Text>
+              <Flaps value={total} settled={settled} />
+              {corpus !== null && (
+                <Text style={styles.corpusNote}>(out of {groupThousands(corpus)})</Text>
+              )}
+            </View>
             {updateAvailable && (
               <Pressable
                 testID="board-update"
@@ -247,7 +260,6 @@ export function Board({ filters, setFilters, count, picking, pending, corpus, no
             onRoll();
           }}
           registerRoll={setRollNode}
-          focusRoll={focusRoll || focusedKey === testId.roll}
         />
       </View>
     </View>
@@ -269,7 +281,6 @@ function Dock({
   notice,
   onRoll,
   registerRoll,
-  focusRoll,
 }: {
   count: number | null;
   pending: boolean;
@@ -277,7 +288,6 @@ function Dock({
   notice: string | null;
   onRoll: () => void;
   registerRoll: (node: View | null) => void;
-  focusRoll?: boolean;
 }) {
   const total = count ?? 0;
   const settled = count !== null && !pending;
@@ -287,15 +297,6 @@ function Dock({
 
   return (
     <View style={styles.dock}>
-      <View
-        style={styles.counter}
-        testID="dock-count"
-        accessible
-        accessibilityLabel={`${total} titles left`}
-      >
-        <Text style={styles.dockLabel}>Titles left</Text>
-        <Flaps value={total} settled={settled} />
-      </View>
       <Text style={styles.warn} numberOfLines={2}>
         {notice ? notice : empty ? 'Nothing in here — widen a range' : total < 40 ? 'Very thin' : ''}
       </Text>
@@ -304,7 +305,9 @@ function Dock({
         disabled={empty}
         testID={testId.roll}
         ref={registerRoll}
-        hasTVPreferredFocus={focusRoll}
+        // the board owns an anchor on mount: with no view focused, arrows go
+        // nowhere — and the pick button is one press from everything
+        hasTVPreferredFocus
         onPress={() => {
           if (!empty) onRoll();
         }}
@@ -422,45 +425,16 @@ function Block({ label, aside, children }: { label: string; aside?: string; chil
   );
 }
 
-/** The seven columns, drawn faintly, so the structure the D-pad follows is visible. */
-function ColumnRules() {
-  return (
-    <View pointerEvents="none" style={styles.rules}>
-      {Array.from({ length: COLS - 1 }, (_, i) => (
-        <View
-          key={i}
-          style={[styles.rule, { left: (layout.cell + layout.gap) * (i + 1) - layout.gap / 2 }]}
-        />
-      ))}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  rules: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: layout.overscan,
-    width: layout.contentWidth,
-  },
-  rule: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    width: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.035)',
-  },
-
   head: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    paddingBottom: s(12),
+    paddingBottom: s(8),
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.slatHi,
   },
-  wordmark: display(32, { em: -0.03, fontWeight: '800', color: colors.chalk }),
+  wordmark: displayHeavy(32, { em: -0.03, color: colors.chalk }),
   wordmarkDot: { color: colors.sodium },
 
   headRight: { flexDirection: 'row', alignItems: 'center', gap: s(20) },
@@ -477,26 +451,27 @@ const styles = StyleSheet.create({
   updateChip: { borderColor: colors.sodium },
   updateLabel: mono(24, { em: 0.15, caps: true, color: colors.sodium }),
 
-  blocks: { paddingTop: s(10), gap: s(10) },
-  block: { gap: s(6) },
+  blocks: { paddingTop: s(4), gap: s(6) },
+  block: { gap: s(4) },
   blockHead: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
-    height: s(28),
+    height: s(30),
   },
   dock: {
     marginTop: 'auto',
-    paddingTop: s(10),
+    paddingTop: s(6),
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.slatHi,
     flexDirection: 'row',
     alignItems: 'center',
     gap: layout.gap,
   },
-  counter: { width: layout.span(3), gap: s(5) },
+  counter: { flexDirection: 'row', alignItems: 'center', gap: s(8) },
   dockLabel: mono(24, { em: 0.2, caps: true, color: colors.dim }),
-  warn: mono(24, { em: 0.1, caps: true, color: colors.cold, width: layout.cell }),
+  corpusNote: mono(18, { em: 0.08, caps: true, color: colors.dim }),
+  warn: mono(24, { em: 0.1, caps: true, color: colors.cold, width: layout.span(4) }),
   roll: { width: layout.span(3) },
-  label: mono(26, { em: 0.2, caps: true, color: colors.dim }),
+  label: mono(24, { em: 0.2, caps: true, color: colors.dim }),
 });

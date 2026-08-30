@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Ref } from 'react';
 
-import { colors, layout, mono, s } from '../theme';
+import { colors, fonts, layout, mono, s } from '../theme';
 
 export type ChipState = 'off' | 'on' | 'excluded';
 
@@ -112,8 +112,8 @@ const styles = StyleSheet.create({
     borderWidth: layout.border,
     borderColor: 'transparent',
   },
-  tall: { height: s(64) },
-  genre: { height: s(52) },
+  tall: { height: s(58) },
+  genre: { height: s(50) },
   focused: {
     borderColor: colors.sodium,
     transform: [{ scale: 1.05 }],
@@ -121,12 +121,15 @@ const styles = StyleSheet.create({
     zIndex: 3,
   },
 
-  name: mono(24, { em: 0.09, caps: true, color: colors.dim }),
+  // selections read in mixed case: a wall of tracked caps across 21 genres
+  // was noise, not broadcast clarity — caps stay reserved for chrome (section
+  // labels, kickers, buttons)
+  name: mono(24, { em: 0.02, color: colors.dim }),
   /** Only the size changes: the tracking stays the one computed against 24. */
   nameGenre: { fontSize: s(26) },
   nameFocused: { color: colors.chalk },
 
-  sub: mono(22, { em: 0.05, caps: true, color: colors.dimmer }),
+  sub: mono(20, { em: 0.02, color: colors.dim }),
   subFocused: { color: colors.dim },
 });
 
@@ -139,7 +142,7 @@ const box = StyleSheet.create({
 
 const ink = StyleSheet.create({
   off: {},
-  on: { color: colors.onSodium, fontWeight: '700' },
+  on: { color: colors.onSodium, fontFamily: fonts.monoBold },
   excluded: { color: colors.cold, textDecorationLine: 'line-through' },
 });
 

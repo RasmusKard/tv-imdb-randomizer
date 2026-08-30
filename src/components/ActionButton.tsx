@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
 import type { Ref } from 'react';
 
-import { colors, display, layout, s } from '../theme';
+import { colors, displayHeavy, layout, s } from '../theme';
 
 type Props = {
   label: string;
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   ghostFocused: { backgroundColor: colors.sodium, transform: [{ scale: 1.03 }], elevation: 12 },
-  label: display(28, { em: 0.12, caps: true, fontWeight: '800' }),
+  label: displayHeavy(28, { em: 0.12, caps: true }),
   labelSolid: { color: colors.onSodium },
   labelGhost: { color: colors.sodium },
   labelDisabled: { color: colors.dim },

@@ -1,284 +1,270 @@
 ---
 name: what.watch
-description: A D-pad-first TV board that rolls a random movie or series from your IMDb-filtered corpus.
+description: A projection booth at showtime — film black, one tungsten amber, every number on a mono ledger. Every px value below is a design-space px: the app is drawn at 1920x1080 and scaled to the real window width by s(n) = n x windowWidth / 1920.
 colors:
-  board: "#0F1329"
-  boardLo: "#0A0D1E"
-  slat: "#1A1F3D"
-  slatHi: "#2A3159"
-  slatLit: "#3B4270"
+  board: "#0A0A0C"
+  boardLo: "#050507"
+  tape: "#121114"
+  slat: "#141417"
+  slatHi: "#232329"
+  slatLit: "#33333B"
   sodium: "#FFB02E"
   sodiumDim: "#C98622"
   onSodium: "#171200"
   onSodiumDim: "#4A3A08"
   cold: "#55CFE6"
-  chalk: "#EDEAE0"
-  dim: "#838BB4"
-  dimmer: "#4E5680"
+  chalk: "#E8E6DC"
+  dim: "#8A8878"
+  dimmer: "#6E6B5E"
 typography:
   display:
-    fontFamily: "sans-serif (Android) / System (Apple platforms)"
-    fontSize: "94px"
+    fontFamily: "Archivo ExtraBold (useFonts key Archivo800)"
+    fontSize: "136px"
     fontWeight: 800
-    letterSpacing: "-0.035em"
-  headline:
-    fontFamily: "sans-serif (Android) / System (Apple platforms)"
-    fontSize: "54px"
-    fontWeight: 800
-    letterSpacing: "-0.03em"
-  title:
-    fontFamily: "sans-serif (Android) / System (Apple platforms)"
-    fontSize: "32px"
-    fontWeight: 800
-    letterSpacing: "-0.03em"
-  control:
-    fontFamily: "sans-serif (Android) / System (Apple platforms)"
+    lineHeight: 1.1
+    letterSpacing: "-0.02em"
+  action:
+    fontFamily: "Archivo ExtraBold (useFonts key Archivo800)"
     fontSize: "28px"
     fontWeight: 800
+    lineHeight: 1.1
     letterSpacing: "0.12em"
-  body:
-    fontFamily: "monospace (Android) / Menlo (Apple platforms)"
-    fontSize: "26px"
-    fontWeight: 400
-  label:
-    fontFamily: "monospace (Android) / Menlo (Apple platforms)"
-    fontSize: "26px"
-    fontWeight: 400
-    letterSpacing: "0.2em"
-  label-sm:
-    fontFamily: "monospace (Android) / Menlo (Apple platforms)"
+  mono:
+    fontFamily: "Chivo Mono Regular (useFonts key ChivoMono400)"
     fontSize: "24px"
     fontWeight: 400
-    letterSpacing: "0.1em"
-  digit:
-    fontFamily: "monospace (Android) / Menlo (Apple platforms)"
+    lineHeight: 1.25
+    letterSpacing: "0.02em"
+  monoBold:
+    fontFamily: "Chivo Mono Bold (useFonts key ChivoMono700)"
     fontSize: "34px"
     fontWeight: 700
+    lineHeight: 1.25
+    letterSpacing: "0.02em"
 rounded:
-  sm: "2px"
-  md: "3px"
-  lg: "6px"
+  xs: "2px"
+  sm: "3px"
 spacing:
   xs: "4px"
   sm: "6px"
-  md: "12px"
-  lg: "16px"
-  xl: "32px"
+  md: "8px"
+  col: "12px"
+  lg: "18px"
+  xl: "20px"
+  xxl: "28px"
 components:
   button-solid:
     backgroundColor: "{colors.sodiumDim}"
     textColor: "{colors.onSodium}"
-    typography: "{typography.control}"
-    rounded: "{rounded.md}"
+    typography: "{typography.action}"
+    rounded: "{rounded.sm}"
     height: "80px"
   button-solid-focus:
     backgroundColor: "{colors.sodium}"
     textColor: "{colors.onSodium}"
-    typography: "{typography.control}"
-    rounded: "{rounded.md}"
-    height: "80px"
   button-ghost:
     backgroundColor: "transparent"
     textColor: "{colors.sodium}"
-    typography: "{typography.control}"
-    rounded: "{rounded.md}"
+    typography: "{typography.action}"
+    rounded: "{rounded.sm}"
     height: "80px"
   button-ghost-focus:
     backgroundColor: "{colors.sodium}"
     textColor: "{colors.onSodium}"
-    typography: "{typography.control}"
-    rounded: "{rounded.md}"
+  button-disabled:
+    backgroundColor: "transparent"
+    textColor: "{colors.dim}"
+    typography: "{typography.action}"
+    rounded: "{rounded.sm}"
     height: "80px"
-  chip:
+  chip-off:
     backgroundColor: "{colors.slat}"
     textColor: "{colors.dim}"
-    typography: "{typography.label-sm}"
-    rounded: "{rounded.md}"
-    height: "64px"
-    width: "1 grid column"
+    typography: "{typography.mono}"
+    rounded: "{rounded.sm}"
+    height: "58px"
   chip-on:
     backgroundColor: "{colors.sodium}"
     textColor: "{colors.onSodium}"
-    typography: "{typography.label-sm}"
-    rounded: "{rounded.md}"
-    height: "64px"
-    width: "1 grid column"
+    typography: "{typography.monoBold}"
+    rounded: "{rounded.sm}"
+    height: "58px"
   chip-excluded:
     backgroundColor: "{colors.boardLo}"
     textColor: "{colors.cold}"
-    typography: "{typography.label-sm}"
-    rounded: "{rounded.md}"
-    height: "64px"
-    width: "1 grid column"
+    typography: "{typography.mono}"
+    rounded: "{rounded.sm}"
+    height: "58px"
   input:
     backgroundColor: "{colors.slat}"
     textColor: "{colors.chalk}"
-    rounded: "{rounded.md}"
+    typography: "{typography.mono}"
+    rounded: "{rounded.sm}"
     height: "64px"
     padding: "0 16px"
   tag:
-    backgroundColor: "{colors.slat}"
-    textColor: "{colors.chalk}"
-    typography: "{typography.label-sm}"
-    rounded: "{rounded.sm}"
-    padding: "8px 14px"
+    backgroundColor: "transparent"
+    textColor: "{colors.dim}"
+    typography: "{typography.mono}"
+    rounded: "2px"
+    padding: "9px 20px"
   receipt:
-    backgroundColor: "{colors.boardLo}"
-    textColor: "{colors.chalk}"
-    typography: "{typography.label-sm}"
-    rounded: "{rounded.md}"
+    backgroundColor: "{colors.tape}"
+    textColor: "{colors.dim}"
+    typography: "{typography.mono}"
+    rounded: "{rounded.sm}"
     height: "76px"
     padding: "0 22px"
+  receipt-focus:
+    backgroundColor: "{colors.tape}"
+    textColor: "{colors.dim}"
 ---
 
 # Design System: what.watch
 
 ## Overview
 
-**Creative North Star: "The Late-Night Cinema Marquee"**
+**Creative North Star: "The Projection Booth at Showtime"**
 
-what.watch is watched from a couch, three metres away, through a remote with five buttons that matter. The screen is a marquee after midnight: a deep indigo night, one sodium-amber lamp doing all the talking, and everything else arranged in the calm, mechanical certainty of a display that knows what it is showing. The board is the marquee's frame — seven columns of chips and slats you set like switches on a console. The verdict is the title card the marquee was built to show: one enormous uppercase title, its rating in amber, and a ticket-stub receipt along the bottom that remembers how you got here.
+The screen is a projected frame. Every surface sits on film black, the frame's own edges carry sprocket strips, and one tungsten amber — the gate light — carries every signal that matters: focus, inclusion, the count, the pick. Emulsion-white Archivo caps stand in the gate glow for titles; Chivo Mono is the booth's ledger, carrying every number and label, tracked wide enough to read from three metres. The verdict screen is the direction's proof surface: a leader countdown in hard cuts, the title standing in the gate glow, and the active filters remembered on a strip of leader tape.
 
-The system's personality is **mechanical and certain**. Nothing drifts, nothing bounces, nothing glows for its own sake. Values settle the way split-flap digits do — right to left, once, and only when the answer is final. Controls answer in detent steps: a tap is exactly one notch, focus is a visible step up in brightness, and "down is straight down" is a hard geometric contract, not a hope. The D-pad grid is drawn faintly on the board itself so the structure your thumb follows is visible on the wall.
+Depth is material and light, never drawn shadows: a six-step ladder of near-black surfaces (boardLo up to slatLit) does the structural work, and glow is volumetric warmth through that material — layered translucent amber shells and SVG radial gradients, not neon edges. Motion happens in hard steps, never easing: the thread-up is three 240 ms cuts, the split-flap counter settles digit by digit, and reduce-motion skips both whole. State is never hue alone: exclusion strikes the label through as well as turning it cyan, and focus is three signals at once — ring, lift, brighten — because TV panels are colour-calibrated by strangers.
 
-Everything is drawn in a **1920×1080 design space** and scaled to the real screen width at module load (`s(n) = n × windowWidth / 1920`, rounded). Every px value in this document is a design-space value; a TV never rotates or resizes, so there are no breakpoints and no reflow — only one scale. All content sits inside a **5% overscan inset** so nothing lands on a bezel. Fonts are the platform faces for now (sans-serif/System for display, monospace/Menlo for the ledger); the intended drop-ins are Archivo (display) and IBM Plex Mono (numbers and labels).
+The world refuses poster-carousel streaming chrome: no columns of rules between board sections (rhythm does the separating), no cue marks on the frame, no chase animation on the sign — the marquee is lit and static by owner decision, and ray-fan and baked-emission textures were tried and removed; the CSS glow shells are the shipped glow.
 
 **Key Characteristics:**
-- Sodium amber is the single warm voice — focus, inclusion, the primary action, the count when it lands
-- Cold cyan is the single counter-voice — exclusion and warnings, never decoration
-- Every number and label is monospace, uppercase, tracked wide enough to read at three metres
-- Flat tonal layering at rest; depth (elevation + scale + amber ring) appears only as a focus response
-- A seven-column grid with sized cells governs every row on every screen; down is straight down
-- Mechanical motion: split-flap settle, detent steps, no springy or ambient animation
+
+- Film-black ground with a six-step near-black surface ladder; one amber lamp, one cyan cue, one emulsion white
+- Two Omnibus-Type faces: Archivo ExtraBold for display and actions, Chivo Mono 400/700 for the ledger — every number is mono
+- Drawn at 1920x1080, scaled by window width through s(); 5% overscan inset on every edge; a 7-column grid with sized cells
+- Hard-step motion, reduce-motion honored by skipping whole
+- States as mark patterns (strike-through, lift, ring, chevrons), never hue alone
+- Glow as room light through material, static; no text shadows, no neon outlines
 
 ## Colors
 
-One warm lamp and one cold warning, carried on an indigo ground that steps up in brightness as surfaces rise.
+A narrow warm band on an ink field: two ambers, one cyan, one white, and a ladder of blacks — nothing else carries meaning.
 
 ### Primary
-- **sodium** (#FFB02E): The marquee lamp. Focus rings, included chips, live slider handles, the pick button at focus, the settled count, the score on a verdict. Its rarity is the point.
-- **sodiumDim** (#C98622): The same lamp at rest. Solid buttons sit here so taking focus is a visible step up in brightness, not a hue change.
-- **onSodium** (#171200): Ink on top of sodium — button labels, chip names in the on state.
-- **onSodiumDim** (#4A3A08): Dimmed ink on top of sodium, for a chip's second line.
+- **Tungsten Amber** (sodium, #FFB02E): the gate light. Focus rings, included chips, the live slider handle, the settled count, the pick button at focus, the reel core. The brightest thing on any screen.
+- **Amber at Rest** (sodiumDim, #C98622): the solid pick button before focus — taking focus is a visible step up in brightness, which is the only reason this token exists.
+- **Ink on Amber** (onSodium, #171200) and **Dim Ink on Amber** (onSodiumDim, #4A3A08): text on amber fills; the dim step is a chip's second line.
 
 ### Secondary
-- **cold** (#55CFE6): The warning voice. Excluded chips, error log lines, the dock's warnings, notices. Always paired with a second signal (strike-through, text), never hue alone.
+- **Cue Cyan** (cold, #55CFE6): exclusion and warning only — the excluded genre, the never-show strike, thin-corpus and error notices, the "− genre" on the leader tape. It never marks focus and never fills a control.
 
 ### Neutral
-- **board** (#0F1329): The board face — every screen's ground.
-- **boardLo** (#0A0D1E): Recessed: the slider track groove, excluded chips, the receipt strip, the log box.
-- **slat** (#1A1F3D): Raised slat surface — chips at rest, inputs, the poster stand-in.
-- **slatHi** (#2A3159): Slat edge: borders, slider handles at rest, hairline rules, the flap tiles.
-- **slatLit** (#3B4270): A handle once its slider has focus — lit from within the indigo family.
-- **chalk** (#EDEAE0): Warm off-white — titles, primary text, values.
-- **dim** (#838BB4): Muted label — chip names at rest, section labels, meta text.
-- **dimmer** (#4E5680): The quietest readable step — leading zeros, a chip's second line, placeholders.
+- **Film Black** (board, #0A0A0C): the unlit ground of every screen.
+- **Leader Black** (boardLo, #050507): deeper than the ground — the slider track groove, excluded chip fills, the leader overlay.
+- **Leader Tape** (tape, #121114): the receipt strip, one step above the ground.
+- **Slat** (slat, #141417): the raised film surface — chips at rest, inputs, cards, the poster panel.
+- **Slat Edge** (slatHi, #232329): hairline rules, borders, slider handles at rest, flap tiles.
+- **Lit Slat** (slatLit, #33333B): a handle once its slider has focus — the surface one step more lit.
+- **Emulsion White** (chalk, #E8E6DC): titles, primary text, the focused solid button's border.
+- **Dim Silver** (dim, #8A8878): muted labels, unselected chip names, the receipt body.
+- **Quiet Silver** (dimmer, #6E6B5E): the quietest readable step — leading zeros, placeholders — lifted to hold roughly 3:1 on slat for large digits; small text uses dim instead.
+
+Amber light also appears as alpha steps of the same hex — rgba(255,176,46,0.12/0.16/0.18/0.22/0.32) for glow shells, chip focus tints and the armed slider — and chalk as rgba(232,230,220,0.03–0.25) for the sign panel, sprocket strips and leader ring. These are the lamp at intensities, not new colors. The one surface outside the palette is the QR card on the import screen, which renders white because scanners read dark-on-light far more reliably; it is a machine target, not part of the booth.
 
 ### Named Rules
-**The One Lamp Rule.** Sodium appears on a small fraction of any screen — focus, selection, the count. If amber starts filling rest-state surfaces, the marquee becomes a flashlight.
+**The One Lamp Rule.** One tungsten amber carries all light: focus, inclusion, the count, the primary action. Cyan is the only second voice and it speaks exclusively for exclusion and warning. Nothing else may brighten.
 
-**The Calibrated-by-a-Stranger Rule.** A TV panel is colour-calibrated by a stranger. No state is ever encoded in hue alone: exclusion is cyan *and* strike-through, focus is ring *and* lift *and* brighten, on-ness is fill *and* weight.
+**The Mark-Pattern Rule.** No state is hue alone. Excluded strikes the label through as well as turning it cyan; focus is ring + lift + brighten; the live slider handle gains drawn chevrons. If a stranger calibrates the panel, every state must still read.
 
 ## Typography
 
-**Display Font:** platform sans-serif (Android) / System (Apple platforms); intended drop-in Archivo
-**Body Font:** platform monospace (Android) / Menlo (Apple platforms); intended drop-in IBM Plex Mono
-**Label/Mono Font:** same mono face — it is the ledger of the whole app
+**Display Font:** Archivo (Omnibus-Type), ExtraBold 800, uppercase, line-height 1.1
+**Body/Ledger Font:** Chivo Mono (Omnibus-Type), 400 and 700, line-height 1.25
+**Label/Mono Font:** Chivo Mono — there is no third face; the ledger is the body
 
-**Character:** Two voices, strictly divided. The display face is for words that sell: the verdict title, the wordmark, button labels — always heavy (800), always tightly tracked, mostly uppercase and huge. The mono face is for everything that counts: labels, values, digits, the receipt — always uppercase, always tracked wide (0.05–0.24em) so it reads at three metres. Display tightens as it grows (negative tracking); mono always opens.
+**Character:** An Argentine poster-and-signage foundry pairing: heavy grotesque caps for what the booth shouts, a wide-tracked mono for what it counts. Every text style is one of four recipes (mono, monoBold, display, displayHeavy), each fixing its face, line-height and tracking so a size and its tracking cannot drift apart.
 
 ### Hierarchy
-- **Display** (800, 94px, −0.035em, uppercase): The verdict title — the one enormous moment. Steps down to 68px when the title runs past 18 characters.
-- **Headline** (800, 54px, −0.03em, uppercase): Poster-title scale, the verdict's right column.
-- **Title** (800, 32px, −0.03em): Wordmarks ("what.watch", "sync your list"), the update version, the verdict plot (400 weight here).
-- **Control** (800, 28px, +0.12em, uppercase): Button labels — display face, wide-tracked like the mono around it.
-- **Body** (400, 26px): Changelog lines, import steps, account values, log lines. Mono, mixed case allowed.
-- **Label** (400, 26px, +0.2em, uppercase): Section labels — "Type", "Genres", "Titles left".
-- **Label-sm** (400, 24px, +0.09–0.15em, uppercase): Chip names and subs, meta lines, receipts, account chips.
-- **Digit** (700, 34px): The split-flap counter's digits; the verdict score runs 42px/700.
+- **Display** (Archivo 800, 136px, lh 1.1, −0.02em, caps): the verdict title, one per night. Long titles (>18 chars) drop to 88px; the thread-up numeral is the same face at 150px.
+- **Headline** (Archivo 800, 32px, −0.02 to −0.03em): the wordmark what.watch on every screen header; the update version.
+- **Action** (Archivo 800, 28px, +0.12em, caps): button labels only.
+- **Body/labels** (Chivo Mono 400, 18–30px, lh 1.25, +0.02 to +0.24em): the workhorse size is 24px for tracked-caps chrome labels; 26px mixed-case plot and changelog text (plot line-height 42); 22–23px for tags, log lines and quiet notes; 18px for the corpus aside.
+- **Numbers** (Chivo Mono 700, 24–44px): the score at 44, flap digits at 34, handle values and the receipt count at 26. Numbers set in the mono; groups of thousands separated by spaces (534 836).
 
 ### Named Rules
-**The Mono Ledger Rule.** If it can be counted, matched, or pressed into a filter, it is mono and uppercase. The display face is reserved for titles, wordmarks, and button labels — words that sell, never numbers.
+**The Ledger Rule.** Every number is set in Chivo Mono — counts, scores, years, votes, handle values, versions. Archivo never carries a digit.
 
-**The Tracking Split Rule.** Display tracking is negative and proportional to size; mono tracking is positive (≥0.05em) and computed against the font size it accompanies (`em` converted to dp at use). A size and its tracking are stated together (`mono(size, {em})`) so they cannot drift apart.
+**The Caps-for-Chrome Rule.** Uppercase plus wide tracking is reserved for chrome: section labels, buttons, meta lines, receipts. Selections (genre names, band names, type chips) read in mixed case — a wall of tracked caps across 21 genres was noise, not broadcast clarity.
 
 ## Layout
 
-Every screen is the same spatial model: the board ground (`board`), a 5% overscan inset on all edges, a hairline-ruled header row (wordmark left, labels/chips right), content in seven-column rows, and a dock pinned to the bottom by `marginTop: auto`.
+Everything is drawn in a 1920x1080 design space and scaled once at module load: s(n) = n x windowWidth / 1920 (a TV never rotates or resizes; a 1080p set reports ~960dp, so s(n) there is n/2). Every size in this document is a design-space number.
 
-- **The grid.** Seven columns (`COLS = 7`) across the overscan-safe width. Cells are *sized, not flexed*: `cell = (contentWidth − 6×gap) / 7`, `gap = 12px` design-space. A row with two cells leaves them in columns 1 and 2 — never stretched — so "down is straight down" stays true.
-- **Spans.** A cell spanning n columns is `cell×n + gap×(n−1)`. The verdict's main column spans 5, the poster 2; the dock's counter and the pick button each span 3.
-- **The column rules.** Six faint hairlines (white at 3.5% alpha) mark the gaps on the board, full height — the D-pad's map, drawn on the wall.
-- **Vertical rhythm.** Blocks stack with a 10px gap; a block's label row is 28px tall; the header and dock are separated from content by hairlines in `slatHi`.
-- **Full-width rows.** Sliders and the receipt span all seven columns. Their focus neighbours are wired explicitly (see Components), because Android's FocusFinder scores by centre distance and cannot find a full-width row from a left-hand chip.
-- **Responsive behaviour.** None, by design. One scale (`s()`) from a 1920-wide design space, read once at module load; a TV never rotates or resizes.
+Every screen sits on the board ground inside a 5% overscan inset on all four edges, so nothing lands on a bezel. The board is a 7-column grid: column gap s(12), cell width computed from the inset content width (cell = (contentWidth − 6 x gap) / 7), a cell spanning n columns is span(n) = n·cell + (n−1)·gap. Cells are sized, never flexed. Spacing rhythm on the board: header padding-bottom s(8) over a hairline; blocks padding-top s(4) with gap s(6); each block gap s(4) under a 30px block head; wider gaps s(18–28) on the verdict. The verdict main column spans 5, the poster 2 (2:3 aspect); its action buttons span 2 each; the pick button on the board spans 3, the warning column 4; account and import forms span 4.
+
+The counter lives in the header corner — "Titles left:" label, split-flap digits, a dim "(out of N)" corpus note — because it is feedback, not a control; the dock holds only the warning line and the pick button ("Pick tonight's show" / "Pick another"). Focus order is a contract, not a suggestion: down is straight down, short rows are inert at their own edges, and full-width rows are wired explicitly because Android's FocusFinder scores by centre distance.
+
+### Named Rules
+**The Straight-Down Rule.** Cells are sized, not flexed, so columns line up and down is straight down — the property that lets someone count presses to a target. A two-cell row leaves its cells in columns 1 and 2 rather than stretching them.
 
 ## Elevation & Depth
 
-The system rests flat. Depth at rest is **tonal layering**: recessed (`boardLo`) below the ground (`board`), slats (`slat`) above it, edges and rules (`slatHi`) above those — five indigo steps that read as physical depth without a single shadow. Hairlines (`StyleSheet.hairlineWidth`) do the separable work: header rule, dock rule, poster foot, the flap hinge.
-
-Depth appears only as a **response to focus**: `elevation: 12`, a scale step (1.03 on buttons, 1.05 on chips), an amber ring, and a brighten — the four signals landing together, because scale alone is not readable on a large filled shape and a ring alone is not readable on a dark one.
+This system draws no drop shadows. Depth is conveyed two ways: by material — the near-black ladder boardLo < board < tape < slat < slatHi < slatLit, each step a surface one step more lit — and by light: the verdict's Gate SVG (a sodium cone from below at 0.1, a chalk wash above at 0.05, a broad chalk bloom behind the title at 0.1/0.045). On device the title bloom's falloff is smooth with no seam.
 
 ### Shadow Vocabulary
-- **focus-lift** (`elevation: 12`, approximated on web as `box-shadow: 0 10px 30px rgba(0,0,0,0.55)`): The only shadow in the system. Appears on focused buttons and chips, removed the instant focus leaves.
+- **Focus lift** (scale 1.05 on chips, 1.03 on buttons; elevation 12; zIndex 3): the only "lift" in the system — a transform plus draw order, no drawn shadow.
+- **Reel-core halo** (shadowColor sodium, shadowOpacity 0.3, shadowRadius s(30), elevation 6): the one warm native shadow, on the reel placeholder's core.
 
 ### Named Rules
-**The Rests Flat Rule.** No shadow exists at rest. If a surface needs to look raised, it steps up one indigo tone instead.
+**The Gate Light Rule.** Glow is volumetric warmth through material — layered translucent amber shells or SVG radial gradients that light the room. It is never a text shadow (an Android text shadow ends in a visible edge; the title bloom lives in the Gate gradient instead), never a neon outline on a shape, and never animated: the sign is lit and static by owner decision.
 
 ## Shapes
 
-Rectangles with barely-rounded corners — mechanical, close to the pixel grid. The standard corner is **3px** (`layout.radius`) on every interactive and container shape; tags run 2px, the progress track 6px. Standard stroke is a **2px border** (`layout.border`) on interactive shapes, `StyleSheet.hairlineWidth` on rules and separations. Status dots are text glyphs (●) inside labels, never circular containers. The one deliberate soft form is the poster stand-in (2:3, hairline border, 32px padding); the one deliberate color inversion is the QR card — pure white with the code printed in `boardLo`, because scanners read dark-on-light far more reliably than the inverted scheme.
+Corners are machine-cut, near-square: radius s(3) on controls and surfaces (chips, buttons, inputs, cards, receipt, poster), s(2) on tags. Borders are structural: 2px borders (s(2)) on chips, buttons and the receipt; StyleSheet.hairlineWidth rules everywhere else — under the header, above the dock, across the poster foot, down the flap hinge. Sprocket holes (s(18) x s(13), radius s(3)) run full-bleed along the frame's top and bottom edges on a chalk 5% strip: the film runs off the screen.
+
+### Named Rules
+**The Rhythm-Not-Rules Rule.** Board blocks are separated by spacing rhythm alone — no vertical column rules between sections (removed by owner decision), no cue marks on the frame. Hairlines appear only at true boundaries: under the header, above the dock, inside cards.
 
 ## Components
 
 ### Buttons
-- **Shape:** 3px radius, 2px border, 80px tall, label centered.
-- **Primary (solid):** `sodiumDim` fill and border at rest — the lamp dimmed; `onSodium` label. On focus: `sodium` fill, `chalk` border, scale 1.03, elevation 12.
-- **Secondary (ghost):** Transparent at rest with a `sodium` border and `sodium` label — it *fills in* on focus rather than at rest, so hierarchy is stated by what is filled.
-- **Hover/Focus:** No transition duration is set; the state change is instantaneous, like a switch. Label: display face, 28px, 800, +0.12em, uppercase.
+- **Shape:** near-square (radius s(3)), 2px border, height s(80), Archivo 800 caps at 28px / +0.12em.
+- **Solid (primary):** fills sodiumDim at rest with onSodium ink, so focus is a step up in brightness to a full sodium fill, chalk border, scale 1.03 — scale alone is not readable focus on a large filled shape.
+- **Ghost (secondary):** transparent face, sodium border and sodium ink at rest; fills sodium on focus. The fill is the focus state, not a resting variant.
+- **Disabled:** transparent face, slatHi border, dim ink — no lamp at all. It stays focusable (an unfocusable cell would trap D-pad navigation) and shows the focus ring only, so it reads reached-but-inert.
+- **Motion:** no transitions; states step.
 
 ### Chips
-One cell of the grid, in three states plus a focus layer. Default chips are 64px tall (name + optional second line); genre chips are 52px and single-line so 21 of them fit three rows.
-- **off:** `slat` fill, `dim` name, `dimmer` sub, transparent border.
-- **on:** `sodium` fill, `onSodium` name (700 weight), `onSodiumDim` sub.
-- **excluded:** `boardLo` fill, `cold` border, `cold` name struck through.
-- **Focus (any state):** `sodium` border, scale 1.05, elevation 12, zIndex 3; an off chip's name brightens to `chalk`. Focus is always ring + lift + brighten.
+- **Style:** one grid cell wide; height s(58) with a sub-line (type, bands) or s(50) single-line (genres); slat fill, transparent 2px border at rest, radius s(3); mixed-case Chivo Mono 24px (+0.02em; genre names 26px), sub 20px.
+- **States:** off (slat, dim ink) / on (sodium fill and border, bold onSodium ink, onSodiumDim sub) / excluded (boardLo fill, cyan border, cyan ink struck through). Focus on any state: sodium ring, scale 1.05, lift; off-state ink brightens to chalk.
+- **Genre chips cycle** off → include → never show, and the state rides the accessibility label ("included", "never show").
 
 ### Range Slider
-A dual-handle slider that is **one focus cell**, full row width, 56px tall, 3px radius, no stroke — a ring around a 1700px element reads as an alarm, so the slat lights up instead (white 2.2% alpha at rest, amber 17% focused, amber 32% armed). OK walks the edit: lower end, upper end, done; while armed, every `nextFocus*` points at the slider itself so focus cannot leak. The track is a 6px groove (`boardLo`, hairline `slatHi` edge); the fill between handles is `sodium` at 0.45/0.75/1.0 opacity for rest/focus/armed. Handles are 124×46 pills (`slatHi`, 3px radius, mono 26/700 `chalk`) with four modes: rest, lit (`slatLit`), dim (0.4, the other end), live (`sodium` fill, `onSodium` text, ◀ ▶ arrows).
+One focus cell, not two handles: OK walks lower → upper → done (hinted in the block's aside while armed), arrows adjust with a 380 ms dead zone then a constant 100 ms repeat — no acceleration. While armed, every nextFocus direction points at itself. The slat tints amber (0.17 focused, 0.32 armed) instead of taking a ring — a ring around a 56px-tall full-width element reads as an alarm. Handles (124 x 46) sit slatHi at rest, slatLit when the row has focus, sodium when live; the live handle shows drawn SVG chevrons, never typed arrows. Track: boardLo groove, hairline slatHi edge, sodium fill at 0.45/0.75/1 by state.
 
-### Flaps (the counter)
-The match count as a split-flap board: six 44×56 tiles (`slatHi`, 3px radius, hairline hinge in `boardLo`), mono 34/700 digits. Not settled: `dim` digits, a `dimmer` ≈ prefix, never animated. Settled: digits settle right-to-left (200ms base + 75ms per digit, 45ms tick), the count reads `sodium`, leading zeros stay `dimmer`. Honors reduce-motion by skipping the settle entirely.
-
-### Cards / Containers
-- **UpdateCard:** `slat` fill, `slatHi` 2px border, 3px radius, 16px padding, 12px internal gap. Version in display 32/800 `sodium`; changelog in mono 26 `chalk`; a full-width solid ActionButton, replaced by a progress bar (6px `slatHi` track, `sodium` fill, mono 26 percentage) while downloading.
-- **Log box / receipt strip:** recessed — `boardLo` fill, `slatHi` border. The receipt is a 76px-tall full-width pressable: filter summary in mono 24 uppercase `chalk` (included genres `sodium`, excluded `cold`), "N left" right-aligned in `sodium`; focus adds a `sodium` border.
+### Flaps (split-flap counter)
+Six slatHi tiles (44 x 56, radius s(3)) with a hairline hinge, bold mono digits (34px): settled digits sodium, leading zeros dimmer, in-flight counts dim under a dimmer "≈" and never animated. A settled count settles right-to-left — 200 ms base plus 75 ms per digit on a 45 ms tick — and reduce-motion skips it entirely.
 
 ### Inputs / Fields
-`slat` fill, `slatHi` 2px border, 3px radius, 64px tall, mono 30 `chalk` text, 16px horizontal padding, `dimmer` placeholders. Password and email rows sit under mono 26/800-equivalent uppercase labels.
+Slat fill, slatHi 2px border, radius s(3), chalk mono text (30px, height s(64)), dimmer placeholders. Remote typing is miserable, so forms are exactly two fields. A TV TextInput that holds focus eats the D-pad for its caret, so fields are rows first — the slider's grammar: OK opens the row for typing (sodium border while open), DONE or back closes it and focus returns to the row. Every screen owns its initial focus so arrows always have an anchor.
 
-### Navigation
-No nav bar — three screens and a verdict overlay, plain state. Movement is the navigation: in-row neighbours are wired to each other and to *self* at row edges; full-width neighbours are named explicitly; focus returns to the pick button ("Pick tonight's show") when you come back from a verdict, and to whatever was just pressed, via `hasTVPreferredFocus`. The header's right side carries the account chip (`slatHi` border, `dim` label; `sodium` label once signed in) and, when an update exists, a `sodium`-bordered "● update ready" chip.
+### Cards / Containers
+Slat fill, slatHi 2px border, radius s(3), internal padding s(16) and gap s(12) — the update card is the instance: version in amber Archivo 32, changelog in chalk mono 26, progress as a sodium fill in a slatHi track. No shadows; the border is the card.
 
-### Signature: GridRow (the focus contract)
-Every row is a `GridRow`: it injects each cell with its in-row neighbours' `nextFocus*` and points the ends at *self* — so a short row is inert at its edges instead of jumping diagonally. Vertical hops that geometry cannot find (into or out of full-width rows) are wired by hand. Deliberately not a `TVFocusGuideView` with memory: straight-down beats remembering where you were.
+### Receipt (leader tape)
+Full-width strip (height s(76), tape fill, slatHi 2px border, radius s(3)) along the verdict's bottom: the active filters in tracked-caps mono 24 (+0.08em) dim ink, "+ genre" in sodium, "− genre" in cyan struck through, and the remaining count in bold sodium at the right end. It doubles as the way back to the board; focus is a sodium border only.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** scale every size through `s()` from the 1920 design space, and keep all content inside the 5% overscan inset.
-- **Do** keep every row seven columns wide, with sized cells — a two-cell row leaves them in columns 1 and 2.
-- **Do** state a size and its tracking together (`mono(size, {em})`); mono labels are uppercase and tracked ≥0.05em.
-- **Do** carry focus with all four signals — ring, lift, brighten, elevation — and let solid controls rest one step dimmer (`sodiumDim`) so focus is a step up.
-- **Do** pair `cold` with a second signal (strike-through, text) whenever it marks a state.
-- **Do** keep the counter unanimated while a count is in flight; settle only a settled count, right to left.
-- **Do** wire focus edges to self, and name full-width rows' neighbours explicitly.
+- **Do** draw every size through s() from the 1920x1080 design space, and keep every screen inside the 5% overscan inset.
+- **Do** give focus three signals — sodium ring, scale lift (1.05 chips / 1.03 buttons), brighten — and nothing else.
+- **Do** keep selections in mixed case; reserve uppercase plus wide tracking for chrome.
+- **Do** set every number in Chivo Mono, thousands grouped with spaces.
+- **Do** move in hard steps (240 ms thread-up cuts, 200+75 ms flap settle, constant 100 ms key repeat) and skip motion whole under reduce-motion.
+- **Do** keep disabled controls focusable and dim — the D-pad must be able to pass through them.
+- **Do** draw glow as SVG radial gradients (the title bloom lives in the Gate), never as a text shadow.
 
 ### Don't:
-- **Don't** introduce a shadow, glow, or gradient at rest — depth at rest is one indigo tone step, never a shadow.
-- **Don't** use `sodium` as a rest-state fill on anything but the on-chip and the live handle; if everything is lit, nothing is.
-- **Don't** use `cold` for anything but exclusion and warnings, or `chalk`/`dim`/`dimmer` out of order — `dimmer` is the floor of readable text.
-- **Don't** add a second accent hue, a rounded pill (radius > 6px), or a circular container.
-- **Don't** animate ambiently, springily, or on hover-analogues; motion is settle-and-detent only.
-- **Don't** stretch cells, center orphan cells, or let focus leave a row diagonally.
-- **Don't** invert the QR card to dark-on-light's opposite — scanners need the white ground.
+- **Don't** use a text shadow for glow — on Android it ends in a visible edge.
+- **Don't** use Android boxShadow for coloured glow — it renders gray.
+- **Don't** build a marquee letterform sign — a bulb-matrix NOW SHOWING was built, resized, repositioned, and scrapped by owner decision; the verdict opens straight onto the score and title, and the frame (sprockets, gate light) carries the booth alone.
+- **Don't** add column rules between board blocks or cue marks on the frame — rhythm separates, hairlines live only at true boundaries.
+- **Don't** mark a state with hue alone, and never let cyan mean anything but exclude/warn.
+- **Don't** flex or stretch grid cells, and never widen a control past its span(n) — down is straight down.
+- **Don't** introduce an easing curve, a third accent colour, or a display face besides Archivo; don't set selections in caps.

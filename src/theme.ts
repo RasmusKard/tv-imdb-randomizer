@@ -1,4 +1,4 @@
-import { Dimensions, Platform, StyleSheet } from 'react-native';
+import { Dimensions, StyleSheet } from 'react-native';
 import type { TextStyle } from 'react-native';
 
 /**
@@ -17,17 +17,19 @@ const windowWidth = Dimensions.get('window').width;
 export const s = (n: number) => Math.round((n * windowWidth) / DESIGN_WIDTH);
 
 export const colors = {
-  /** deep indigo ground — the board face */
-  board: '#0F1329',
-  /** recessed: the track groove, excluded chips, the receipt strip */
-  boardLo: '#0A0D1E',
-  /** raised slat surface — chips at rest */
-  slat: '#1A1F3D',
+  /** film black — the unlit ground of every screen */
+  board: '#0A0A0C',
+  /** deeper black — unlit: the track groove, excluded chips, the leader tape */
+  boardLo: '#050507',
+  /** raised film surface — chips at rest */
+  slat: '#141417',
   /** slat edge, handles at rest, hairline rules */
-  slatHi: '#2A3159',
+  slatHi: '#232329',
   /** handles once their slider has focus */
-  slatLit: '#3B4270',
-  /** amber — primary, focus, editing, include */
+  slatLit: '#33333B',
+  /** leader tape strip — one step above the ground */
+  tape: '#121114',
+  /** tungsten amber — the gate light: primary, focus, editing, include */
   sodium: '#FFB02E',
   /** the same amber at rest, so taking focus is a visible step up in brightness */
   sodiumDim: '#C98622',
@@ -35,24 +37,28 @@ export const colors = {
   onSodium: '#171200',
   /** dimmed ink on top of sodium, for a chip's second line */
   onSodiumDim: '#4A3A08',
-  /** cyan — exclude, warnings */
+  /** cue cyan — exclude, warnings */
   cold: '#55CFE6',
-  /** warm off-white */
-  chalk: '#EDEAE0',
-  /** muted label */
-  dim: '#838BB4',
-  /** the quietest readable step: leading zeros, a chip's second line */
-  dimmer: '#4E5680',
+  /** emulsion white — titles, primary text */
+  chalk: '#E8E6DC',
+  /** dim silver — muted labels */
+  dim: '#8A8878',
+  /** the quietest readable step: leading zeros, placeholders — lifted to
+   * hold ~3:1 on slat for large digits; small text uses dim */
+  dimmer: '#6E6B5E',
 } as const;
 
 /**
- * v1 uses the platform faces so nothing is blocked on assets. Dropping in Archivo
- * (display) and IBM Plex Mono (every number and label) is a change to these two
- * values plus a useFonts call in App.tsx.
+ * The booth's two faces, both Omnibus-Type — the Argentine poster and signage
+ * foundry — loaded in App.tsx via useFonts; the family names below are the
+ * useFonts keys. Display: Archivo ExtraBold (titles, wordmark, actions).
+ * Ledger: Chivo Mono 400/700 for every number and label, tracked wide to
+ * read at three metres.
  */
 export const fonts = {
-  display: Platform.select({ android: 'sans-serif', default: 'System' }),
-  mono: Platform.select({ android: 'monospace', default: 'Menlo' }),
+  displayHeavy: 'Archivo800',
+  mono: 'ChivoMono400',
+  monoBold: 'ChivoMono700',
 } as const;
 
 /** Every row on both screens is this many columns wide. */
@@ -97,19 +103,29 @@ type TextRecipe = Omit<TextStyle, 'fontFamily' | 'fontSize' | 'letterSpacing'> &
  * Every text style in the app is the same three or four keys: a face, a size from
  * the design space, that size's tracking, usually uppercase. `mono` and `display`
  * state them once, so a size and the tracking derived from it cannot drift apart.
+ *
+ * The faces carry an explicit line-height (mono 1.25, display 1.1): without one,
+ * each family's built-in leading decides the row heights, and the board's
+ * fixed-height rows overflow the overscan inset whenever a face swaps in taller
+ * than the last. An explicit leading is the one number that keeps the stack
+ * inside the screen from being an accident of the font files.
  */
 const face =
-  (fontFamily: TextStyle['fontFamily']) =>
-  (size: number, { em, caps, ...rest }: TextRecipe = {}): TextStyle => ({
+  (fontFamily: TextStyle['fontFamily'], lh: number) =>
+  (size: number, { em, caps, lineHeight, ...rest }: TextRecipe = {}): TextStyle => ({
     fontFamily,
     fontSize: s(size),
+    ...(lineHeight !== undefined
+      ? { lineHeight: s(lineHeight) }
+      : { lineHeight: Math.round(s(size) * lh) }),
     ...(em !== undefined && { letterSpacing: tracking(s(size), em) }),
     ...(caps && { textTransform: 'uppercase' }),
     ...rest,
   });
 
-export const mono = face(fonts.mono);
-export const display = face(fonts.display);
+export const mono = face(fonts.mono, 1.25);
+export const monoBold = face(fonts.monoBold, 1.25);
+export const displayHeavy = face(fonts.displayHeavy, 1.1);
 
 /**
  * Every screen sits on the board ground and inside the overscan inset, so
