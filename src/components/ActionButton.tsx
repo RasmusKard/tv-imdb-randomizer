@@ -1,6 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
 import type { Ref } from 'react';
+
+import { T } from './T';
 
 import { colors, displayHeavy, layout, s } from '../theme';
 
@@ -17,6 +19,11 @@ type Props = {
   hasTVPreferredFocus?: boolean;
   style?: StyleProp<ViewStyle>;
   ref?: Ref<View>;
+  /** GridRow injects these; without them a button row's wiring is dead props. */
+  nextFocusLeft?: View | null;
+  nextFocusRight?: View | null;
+  nextFocusUp?: View | null;
+  nextFocusDown?: View | null;
 };
 
 export function ActionButton({
@@ -29,6 +36,10 @@ export function ActionButton({
   hasTVPreferredFocus,
   style,
   ref,
+  nextFocusLeft,
+  nextFocusRight,
+  nextFocusUp,
+  nextFocusDown,
 }: Props) {
   return (
     <Pressable
@@ -40,6 +51,10 @@ export function ActionButton({
       onPress={disabled ? undefined : onPress}
       onFocus={onFocus}
       hasTVPreferredFocus={hasTVPreferredFocus}
+      nextFocusLeft={nextFocusLeft}
+      nextFocusRight={nextFocusRight}
+      nextFocusUp={nextFocusUp}
+      nextFocusDown={nextFocusDown}
       style={({ focused }) => [
         styles.base,
         disabled
@@ -53,7 +68,7 @@ export function ActionButton({
       ]}
     >
       {({ focused }) => (
-        <Text
+        <T
           style={[
             styles.label,
             disabled
@@ -64,7 +79,7 @@ export function ActionButton({
           ]}
         >
           {label}
-        </Text>
+        </T>
       )}
     </Pressable>
   );

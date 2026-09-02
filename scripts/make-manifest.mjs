@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Generates update-manifest.json, the one file every installed app polls.
- * Shape is documented in PLAN-update.md; the checker picks exactly one
+ * The checker picks exactly one
  * channel and never sees the other.
  *
  *   node scripts/make-manifest.mjs --tag v1.2.3 --apk app-tv-1.2.3.apk --notes notes.txt

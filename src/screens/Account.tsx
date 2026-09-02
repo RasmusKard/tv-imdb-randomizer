@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { AccessibilityInfo, BackHandler, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, BackHandler, StyleSheet, View } from 'react-native';
 
 import { deviceTag, fetchWatched, type Session } from '../api/auth';
 import { ActionButton } from '../components/ActionButton';
+import { T } from '../components/T';
 import { UpdateCard } from '../components/UpdateCard';
 import type { UpdateInfo } from '../update/compare';
 import { checkForUpdate, installedVersion } from '../update/checker';
-import { colors, displayHeavy, layout, mono, s, screen } from '../theme';
+import { groupThousands } from '../lib/format';
+import { colors, displayHeavy, layout, mono, s, screen, text } from '../theme';
 
 type Props = {
   session: Session | null;
@@ -77,21 +79,21 @@ export function Account({ session, onImport, onBack, update, onUpdate }: Props) 
     <View style={screen.root}>
       <View style={screen.safe}>
         <View style={styles.head}>
-          <Text style={styles.wordmark}>
-            your <Text style={styles.wordmarkDot}>account</Text>
-          </Text>
-          <Text style={styles.label}>titles you have watched never roll again</Text>
+          <T style={styles.wordmark}>
+            your <T style={styles.wordmarkDot}>list</T>
+          </T>
+          <T style={styles.label}>titles you have watched never roll again</T>
         </View>
 
         <View style={styles.form}>
           <Row label="Device">
-            <Text style={styles.value}>{session ? deviceTag(session.deviceId) : 'signing in…'}</Text>
+            <T style={styles.value}>{session ? deviceTag(session.deviceId) : 'signing in…'}</T>
           </Row>
           <Row label="Titles watched">
-            <Text style={styles.value}>{watchedCount !== null ? group(watchedCount) : '—'}</Text>
+            <T style={styles.value}>{watchedCount !== null ? groupThousands(watchedCount) : '—'}</T>
           </Row>
           <View style={styles.row}>
-            <ActionButton label="Import CSV" testID="account-import" onPress={onImport} style={styles.wide} hasTVPreferredFocus />
+            <ActionButton label="Import from IMDb" testID="account-import" onPress={onImport} style={styles.wide} hasTVPreferredFocus />
           </View>
         </View>
 
@@ -107,21 +109,21 @@ export function Account({ session, onImport, onBack, update, onUpdate }: Props) 
         )}
 
         <View style={styles.versionRow}>
-          <Text style={styles.versionLabel} testID="account-version">
+          <T style={styles.versionLabel} testID="account-version">
             {version.versionName ?? 'dev'} ({version.versionCode})
-          </Text>
+          </T>
           <ActionButton
             label={checking ? 'Checking…' : 'Check for updates'}
             variant="ghost"
             testID="account-check-updates"
             onPress={checkForUpdates}
-            style={styles.wide}
+            style={styles.checkButton}
           />
         </View>
 
-        <Text style={styles.notice} numberOfLines={2} testID="account-notice">
+        <T style={styles.notice} numberOfLines={2} testID="account-notice">
           {notice ?? ''}
-        </Text>
+        </T>
       </View>
     </View>
   );
@@ -130,20 +132,18 @@ export function Account({ session, onImport, onBack, update, onUpdate }: Props) 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <View style={styles.fieldRow}>
-      <Text style={styles.label}>{label}</Text>
+      <T style={styles.label}>{label}</T>
       {children}
     </View>
   );
 }
-
-const group = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
 const styles = StyleSheet.create({
   head: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    paddingBottom: s(12),
+    paddingBottom: s(8),
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.slatHi,
   },
@@ -154,12 +154,22 @@ const styles = StyleSheet.create({
   fieldRow: { gap: s(6) },
   row: { flexDirection: 'row', gap: layout.gap },
   wide: { flex: 1 },
+  // sized, not stretched: the row is span(4), the check button takes span(2)
+  checkButton: { width: layout.span(2) },
   value: mono(30, { color: colors.chalk }),
 
-  notice: mono(26, { em: 0.1, caps: true, color: colors.cold, marginTop: 'auto' }),
-  label: mono(26, { em: 0.2, caps: true, color: colors.dim }),
+  notice: { ...text.notice, marginTop: 'auto' },
+  label: text.label,
 
   updateBlock: { width: layout.span(4) },
-  versionRow: { flexDirection: 'row', gap: layout.gap, width: layout.span(4), alignItems: 'center' },
-  versionLabel: mono(26, { em: 0.2, caps: true, color: colors.dim }),
+  versionRow: {
+    flexDirection: 'row',
+    gap: layout.gap,
+    width: layout.span(4),
+    alignItems: 'center',
+    // the update card used to sit between this row and the summary; keep the
+    // same breathing room now that the row can directly follow the form
+    paddingTop: s(24),
+  },
+  versionLabel: text.label,
 });

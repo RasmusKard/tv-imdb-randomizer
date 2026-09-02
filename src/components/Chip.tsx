@@ -1,5 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import type { Ref } from 'react';
+
+import { T } from './T';
 
 import { colors, fonts, layout, mono, s } from '../theme';
 
@@ -75,7 +77,7 @@ export function Chip({
     >
       {({ focused }) => (
         <>
-          <Text
+          <T
             numberOfLines={1}
             style={[
               styles.name,
@@ -85,14 +87,14 @@ export function Chip({
             ]}
           >
             {name}
-          </Text>
+          </T>
           {sub ? (
-            <Text
+            <T
               numberOfLines={1}
               style={[styles.sub, subInk[state], focused && state === 'off' && styles.subFocused]}
             >
               {sub}
-            </Text>
+            </T>
           ) : null}
         </>
       )}
@@ -112,8 +114,10 @@ const styles = StyleSheet.create({
     borderWidth: layout.border,
     borderColor: 'transparent',
   },
-  tall: { height: s(58) },
-  genre: { height: s(50) },
+  // two-line chips are content-height (27.5 + 3 + 22.5 = 53): the air is the
+  // mono leading, so the box cannot go smaller without clipping it
+  tall: { height: s(54) },
+  genre: { height: s(44) },
   focused: {
     borderColor: colors.sodium,
     transform: [{ scale: 1.05 }],
@@ -124,12 +128,11 @@ const styles = StyleSheet.create({
   // selections read in mixed case: a wall of tracked caps across 21 genres
   // was noise, not broadcast clarity — caps stay reserved for chrome (section
   // labels, kickers, buttons)
-  name: mono(24, { em: 0.02, color: colors.dim }),
-  /** Only the size changes: the tracking stays the one computed against 24. */
-  nameGenre: { fontSize: s(26) },
+  name: mono(22, { em: 0.02, color: colors.dim }),
+  nameGenre: mono(24, { em: 0.02 }),
   nameFocused: { color: colors.chalk },
 
-  sub: mono(20, { em: 0.02, color: colors.dim }),
+  sub: mono(18, { em: 0.02, color: colors.dim }),
   subFocused: { color: colors.dim },
 });
 

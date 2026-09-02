@@ -15,7 +15,6 @@ colors:
   cold: "#55CFE6"
   chalk: "#E8E6DC"
   dim: "#8A8878"
-  dimmer: "#6E6B5E"
 typography:
   display:
     fontFamily: "Archivo ExtraBold (useFonts key Archivo800)"
@@ -162,9 +161,9 @@ A narrow warm band on an ink field: two ambers, one cyan, one white, and a ladde
 - **Lit Slat** (slatLit, #33333B): a handle once its slider has focus — the surface one step more lit.
 - **Emulsion White** (chalk, #E8E6DC): titles, primary text, the focused solid button's border.
 - **Dim Silver** (dim, #8A8878): muted labels, unselected chip names, the receipt body.
-- **Quiet Silver** (dimmer, #6E6B5E): the quietest readable step — leading zeros, placeholders — lifted to hold roughly 3:1 on slat for large digits; small text uses dim instead.
+- **Dim Silver** (dim, #8A8878): muted labels, unselected chip names, the receipt body, the flap tiles' quiet digits — the one de-emphasis step below lit text.
 
-Amber light also appears as alpha steps of the same hex — rgba(255,176,46,0.12/0.16/0.18/0.22/0.32) for glow shells, chip focus tints and the armed slider — and chalk as rgba(232,230,220,0.03–0.25) for the sign panel, sprocket strips and leader ring. These are the lamp at intensities, not new colors. The one surface outside the palette is the QR card on the import screen, which renders white because scanners read dark-on-light far more reliably; it is a machine target, not part of the booth.
+Amber light also appears as alpha steps of the same hex — rgba(255,176,46,0.12/0.16/0.18/0.22/0.32) for glow shells, chip focus tints and the armed slider — and chalk as rgba(232,230,220,0.03–0.25) for the sign panel, sprocket strips and leader ring. These are the lamp at intensities, not new colors. The one surface outside the palette is the QR card on the import screen, which renders white because scanners read dark-on-light far more reliably; it is a machine target, not part of the booth. The phone-side upload page it opens is the same kind of machine target, set in the phone's own system UI at phone sizes.
 
 ### Named Rules
 **The One Lamp Rule.** One tungsten amber carries all light: focus, inclusion, the count, the primary action. Cyan is the only second voice and it speaks exclusively for exclusion and warning. Nothing else may brighten.
@@ -180,11 +179,13 @@ Amber light also appears as alpha steps of the same hex — rgba(255,176,46,0.12
 **Character:** An Argentine poster-and-signage foundry pairing: heavy grotesque caps for what the booth shouts, a wide-tracked mono for what it counts. Every text style is one of four recipes (mono, monoBold, display, displayHeavy), each fixing its face, line-height and tracking so a size and its tracking cannot drift apart.
 
 ### Hierarchy
-- **Display** (Archivo 800, 136px, lh 1.1, −0.02em, caps): the verdict title, one per night. Long titles (>18 chars) drop to 88px; the thread-up numeral is the same face at 150px.
-- **Headline** (Archivo 800, 32px, −0.02 to −0.03em): the wordmark what.watch on every screen header; the update version.
-- **Action** (Archivo 800, 28px, +0.12em, caps): button labels only.
-- **Body/labels** (Chivo Mono 400, 18–30px, lh 1.25, +0.02 to +0.24em): the workhorse size is 24px for tracked-caps chrome labels; 26px mixed-case plot and changelog text (plot line-height 42); 22–23px for tags, log lines and quiet notes; 18px for the corpus aside.
-- **Numbers** (Chivo Mono 700, 24–44px): the score at 44, flap digits at 34, handle values and the receipt count at 26. Numbers set in the mono; groups of thousands separated by spaces (534 836).
+- **Display** (Archivo 800, 136px, lh 1.1, −0.02em, caps): the verdict title, one per night. Long titles (>15 chars) drop to 88px and past 44 chars to 64px, so a two-line title stays one dramatic line (a main column at 136 fits ~15 caps, 88 ~22, 64 ~30); the thread-up numeral is the same face at 150px — the one digit Archivo carries, a display moment rather than data.
+- **Headline** (Archivo 800, 32px, −0.02 to −0.03em): the wordmark what.watch on every screen header.
+- **Action** (Archivo 800, 28px, +0.12em, caps): button labels only, and never a digit — versions live in the ledger.
+- **Body/labels** (Chivo Mono 400, 18–30px, lh 1.25, +0.02 to +0.2em): the workhorse size is 24px for tracked-caps chrome labels; 26px mixed-case plot, changelog and step text (plot line-height 42); 22–23px for tags, log lines and quiet notes; 18px for the corpus aside and the TMDB credit. Tracked caps step through four widths only: 0.02em on selections, 0.08em on receipts, 0.1em on warnings and meta lines, 0.2em on labels.
+- **Numbers** (Chivo Mono 700, 24–44px): the score at 44, flap digits at 34, the update version at 32, handle values, the progress percent and the receipt count at 26. Numbers set in the mono; groups of thousands separated by spaces (534 836) wherever a count is shown whole. Two deliberate compressions: slider handles and the receipt abbreviate (534K, 1M+) because a 124px handle cannot hold nine digits, and the split-flap tiles read digit-by-digit ungrouped — the grouped corpus note sits right beside them.
+
+The projection is fixed: text never rescales with the system font size (`allowFontScaling` is pinned app-wide, because every row is fixed-height and s() is the only scale). Readability at three metres is designed in, not delegated to a setting.
 
 ### Named Rules
 **The Ledger Rule.** Every number is set in Chivo Mono — counts, scores, years, votes, handle values, versions. Archivo never carries a digit.
@@ -195,7 +196,7 @@ Amber light also appears as alpha steps of the same hex — rgba(255,176,46,0.12
 
 Everything is drawn in a 1920x1080 design space and scaled once at module load: s(n) = n x windowWidth / 1920 (a TV never rotates or resizes; a 1080p set reports ~960dp, so s(n) there is n/2). Every size in this document is a design-space number.
 
-Every screen sits on the board ground inside a 5% overscan inset on all four edges, so nothing lands on a bezel. The board is a 7-column grid: column gap s(12), cell width computed from the inset content width (cell = (contentWidth − 6 x gap) / 7), a cell spanning n columns is span(n) = n·cell + (n−1)·gap. Cells are sized, never flexed. Spacing rhythm on the board: header padding-bottom s(8) over a hairline; blocks padding-top s(4) with gap s(6); each block gap s(4) under a 30px block head; wider gaps s(18–28) on the verdict. The verdict main column spans 5, the poster 2 (2:3 aspect); its action buttons span 2 each; the pick button on the board spans 3, the warning column 4; account and import forms span 4.
+Every screen sits on the board ground inside a 5% overscan inset on all four edges (percentage padding resolves against the width, so every edge carries the same 96px band), so nothing lands on a bezel. The board is a 7-column grid: column gap s(12), cell width computed from the inset content width (cell = (contentWidth − 6 x gap) / 7), a cell spanning n columns is span(n) = n·cell + (n−1)·gap. Cells are sized, never flexed. Spacing rhythm on the board: header padding-bottom s(8) over a hairline on every screen; the cadence is gap contrast — s(4) inside a block, s(14) between blocks (blocks padding-top s(2)); each block gap s(4) under a 28px block head; a hairline above every dock (padding-top s(2)); wider gaps s(18–28) on the verdict. The verdict main column spans 5, the poster 2 (2:3 aspect); its action buttons share the main's five columns equally (three when Plex matched, two otherwise); the pick button on the board spans 3, the warning column 4; account and import forms span 4; the import dock shows three span(2) buttons — paste mode replaces pick mode, because four would be eight columns.
 
 The counter lives in the header corner — "Titles left:" label, split-flap digits, a dim "(out of N)" corpus note — because it is feedback, not a control; the dock holds only the warning line and the pick button ("Pick tonight's show" / "Pick another"). Focus order is a contract, not a suggestion: down is straight down, short rows are inert at their own edges, and full-width rows are wired explicitly because Android's FocusFinder scores by centre distance.
 
@@ -230,21 +231,21 @@ Corners are machine-cut, near-square: radius s(3) on controls and surfaces (chip
 - **Motion:** no transitions; states step.
 
 ### Chips
-- **Style:** one grid cell wide; height s(58) with a sub-line (type, bands) or s(50) single-line (genres); slat fill, transparent 2px border at rest, radius s(3); mixed-case Chivo Mono 24px (+0.02em; genre names 26px), sub 20px.
+- **Style:** one grid cell wide; height s(54) with a sub-line (type, bands) — content-height, the mono leading is the padding — or s(44) single-line (genres); slat fill, transparent 2px border at rest, radius s(3); mixed-case Chivo Mono 22px (+0.02em; genre names 24px), sub 18px.
 - **States:** off (slat, dim ink) / on (sodium fill and border, bold onSodium ink, onSodiumDim sub) / excluded (boardLo fill, cyan border, cyan ink struck through). Focus on any state: sodium ring, scale 1.05, lift; off-state ink brightens to chalk.
 - **Genre chips cycle** off → include → never show, and the state rides the accessibility label ("included", "never show").
 
 ### Range Slider
-One focus cell, not two handles: OK walks lower → upper → done (hinted in the block's aside while armed), arrows adjust with a 380 ms dead zone then a constant 100 ms repeat — no acceleration. While armed, every nextFocus direction points at itself. The slat tints amber (0.17 focused, 0.32 armed) instead of taking a ring — a ring around a 56px-tall full-width element reads as an alarm. Handles (124 x 46) sit slatHi at rest, slatLit when the row has focus, sodium when live; the live handle shows drawn SVG chevrons, never typed arrows. Track: boardLo groove, hairline slatHi edge, sodium fill at 0.45/0.75/1 by state.
+One focus cell, not two handles: OK walks lower → upper → done (hinted in the block's aside while armed), arrows adjust with a 380 ms dead zone then a constant 100 ms repeat — no acceleration. While armed, every nextFocus direction points at itself. The slat tints amber (0.17 focused, 0.32 armed) instead of taking a ring — a ring around a full-width element reads as an alarm. Handles (124 x 44) sit slatHi at rest, slatLit when the row has focus, sodium when live; the live handle shows drawn SVG chevrons, never typed arrows. Track: boardLo groove, hairline slatHi edge, sodium fill at 0.22 for a whole axis at rest (an untouched range is not a choice), 0.45/0.75/1 by state once narrowed.
 
 ### Flaps (split-flap counter)
-Six slatHi tiles (44 x 56, radius s(3)) with a hairline hinge, bold mono digits (34px): settled digits sodium, leading zeros dimmer, in-flight counts dim under a dimmer "≈" and never animated. A settled count settles right-to-left — 200 ms base plus 75 ms per digit on a 45 ms tick — and reduce-motion skips it entirely.
+Six slatHi tiles (44 x 56, radius s(3)) with a hairline hinge, bold mono digits (34px): settled digits sodium, leading zeros and the in-flight "≈" dim — one de-emphasis step, holding 3:1 on the tile. A settled count settles right-to-left — 200 ms base plus 75 ms per digit on a 45 ms tick — and reduce-motion skips it entirely. Only the digits that changed flip: a pick that takes the count down one moves exactly one flap, so the motion states the fact and nothing more.
 
 ### Inputs / Fields
-Slat fill, slatHi 2px border, radius s(3), chalk mono text (30px, height s(64)), dimmer placeholders. Remote typing is miserable, so forms are exactly two fields. A TV TextInput that holds focus eats the D-pad for its caret, so fields are rows first — the slider's grammar: OK opens the row for typing (sodium border while open), DONE or back closes it and focus returns to the row. Every screen owns its initial focus so arrows always have an anchor.
+Slat fill, slatHi 2px border, radius s(3), chalk mono text (30px, height s(64)), dim placeholders. Remote typing is miserable, so forms are exactly two fields. A TV TextInput that holds focus eats the D-pad for its caret, so fields are rows first — the slider's grammar: OK opens the row for typing (sodium border while open), DONE or back closes it and focus returns to the row. Every screen owns its initial focus so arrows always have an anchor.
 
 ### Cards / Containers
-Slat fill, slatHi 2px border, radius s(3), internal padding s(16) and gap s(12) — the update card is the instance: version in amber Archivo 32, changelog in chalk mono 26, progress as a sodium fill in a slatHi track. No shadows; the border is the card.
+Slat fill, slatHi 2px border, radius s(3), internal padding s(16) and gap s(12) — the update card is the instance: version in amber mono bold 32, three changelog lines in chalk mono 26 (the account screen has no scroll; more lines would push the version row off the inset), progress as a sodium fill in a slatHi track. No shadows; the border is the card.
 
 ### Receipt (leader tape)
 Full-width strip (height s(76), tape fill, slatHi 2px border, radius s(3)) along the verdict's bottom: the active filters in tracked-caps mono 24 (+0.08em) dim ink, "+ genre" in sodium, "− genre" in cyan struck through, and the remaining count in bold sodium at the right end. It doubles as the way back to the board; focus is a sodium border only.

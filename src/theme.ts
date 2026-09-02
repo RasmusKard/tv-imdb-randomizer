@@ -41,11 +41,9 @@ export const colors = {
   cold: '#55CFE6',
   /** emulsion white — titles, primary text */
   chalk: '#E8E6DC',
-  /** dim silver — muted labels */
+  /** dim silver — muted labels, the flap tiles' quiet digits; the one
+   *  de-emphasis step below lit text */
   dim: '#8A8878',
-  /** the quietest readable step: leading zeros, placeholders — lifted to
-   * hold ~3:1 on slat for large digits; small text uses dim */
-  dimmer: '#6E6B5E',
 } as const;
 
 /**
@@ -128,8 +126,27 @@ export const monoBold = face(fonts.monoBold, 1.25);
 export const displayHeavy = face(fonts.displayHeavy, 1.1);
 
 /**
+ * Roles that repeat across screens keep one recipe here, so the same job is
+ * the same size and tracking everywhere. Colour stays with the tokens where
+ * the role owns one; `body` takes its colour at the call site.
+ */
+export const text = {
+  /** tracked-caps chrome: block heads, asides, meta lines, the version row */
+  label: mono(24, { em: 0.2, caps: true, color: colors.dim }),
+  /** the warning voice — cue cyan, the same caps discipline */
+  notice: mono(24, { em: 0.1, caps: true, color: colors.cold }),
+  /** mixed-case body: plot, changelog, steps; colour and leading at the call site */
+  body: mono(26, {}),
+} as const;
+
+/**
  * Every screen sits on the board ground and inside the overscan inset, so
  * "nothing lands on a bezel" is stated once rather than copied per screen.
+ *
+ * RN resolves percentage padding against the parent's WIDTH on every side, so
+ * the vertical inset here is the same 96px band as the horizontal one — one
+ * number, one inset, deliberately left as the percentage rather than split
+ * into per-axis absolutes.
  */
 export const screen = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.board },

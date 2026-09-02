@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { BackHandler, Pressable, StyleSheet, Text, useTVEventHandler, View } from 'react-native';
+import { BackHandler, Pressable, StyleSheet, useTVEventHandler, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import { T } from './T';
+
 import type { Axis } from '../config/filters';
-import { nudge } from '../lib/range';
+import { isWholeAxis, nudge } from '../lib/range';
 import { colors, layout, mono, monoBold, s } from '../theme';
 
 export type Editing = null | 0 | 1;
@@ -33,6 +35,9 @@ type Props = {
   testID: string;
   /** The row below is seven columns wide; pin the hop to column 1. */
   nextFocusDown?: View | null;
+  /** The Type row above is two cells wide; pin the hop to column 1, so the
+   *  down-then-up round trip is identity instead of geometry's centre guess. */
+  nextFocusUp?: View | null;
   /**
    * Board needs this node to wire the rows above and below back to the slider.
    * Must be referentially stable — a fresh callback each render makes React
@@ -94,6 +99,7 @@ export function RangeSlider({
   onChange,
   testID,
   nextFocusDown,
+  nextFocusUp,
   registerNode,
   selfNode,
   editing,
@@ -205,6 +211,9 @@ export function RangeSlider({
   };
 
   const [lo, hi] = value;
+  // an untouched axis is not a choice: the lamp spends on narrowed ranges,
+  // and a whole-axis fill at full rest opacity would shout "picked" for "Any"
+  const whole = isWholeAxis(axis, value);
   // handle position is itself the pill's left edge, mapped over the space the
   // pill can actually occupy (TRAVEL), so it moves the instant the value
   // leaves the axis floor instead of sitting dead until it clears half a
@@ -228,7 +237,7 @@ export function RangeSlider({
         onPress={step}
         onBlur={exitEditing}
         hasTVPreferredFocus={hasTVPreferredFocus}
-        nextFocusUp={trapped ? self : undefined}
+        nextFocusUp={trapped ? self : nextFocusUp}
         nextFocusDown={trapped ? self : nextFocusDown}
         nextFocusLeft={trapped ? self : undefined}
         nextFocusRight={trapped ? self : undefined}
@@ -247,6 +256,7 @@ export function RangeSlider({
                   // the fill spans between the handles' own centres, so it lines
                   // up with the pills rather than the raw (unclamped) value line
                   { left: loLeft + HANDLE_W / 2, width: Math.max(0, hiLeft - loLeft) },
+                  whole && !focused && !trapped && styles.fillWhole,
                   focused && styles.fillFocused,
                   trapped && styles.fillArmed,
                 ]}
@@ -298,18 +308,18 @@ function Handle({ text, left, mode }: { text: string; left: number; mode: Handle
   return (
     <View style={[styles.handle, { left: left + PAD_H }, handleState[mode]]}>
       {live ? <Chevron dir={-1} /> : null}
-      <Text style={[styles.handleText, live && styles.handleTextLive]}>{text}</Text>
+      <T style={[styles.handleText, live && styles.handleTextLive]}>{text}</T>
       {live ? <Chevron dir={1} /> : null}
     </View>
   );
 }
 
-const HEIGHT = s(56);
-const HANDLE_H = s(46);
+const HEIGHT = s(50);
+const HANDLE_H = s(44);
 
 const styles = StyleSheet.create({
-  // no stroke: a ring around a 56 x 1700px element reads as an alert, not as
-  // focus, so the slat lights up instead
+  // no stroke: a ring around a full-width element this tall reads as an alert,
+  // not as focus, so the slat lights up instead
   slider: {
     height: HEIGHT,
     width: layout.contentWidth,
@@ -340,6 +350,7 @@ const styles = StyleSheet.create({
   },
   fillFocused: { opacity: 0.75 },
   fillArmed: { opacity: 1 },
+  fillWhole: { opacity: 0.22 },
 
   handle: {
     position: 'absolute',

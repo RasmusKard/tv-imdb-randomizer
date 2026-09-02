@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import type { Filters, GenreState, Title } from '../api/types';
@@ -8,7 +8,9 @@ import { AXES, RANGE_KEYS, testId } from '../config/filters';
 import { isWholeAxis } from '../lib/range';
 import { useReduceMotion } from '../lib/motion';
 import { ActionButton } from '../components/ActionButton';
-import { colors, displayHeavy, layout, mono, monoBold, s, screen } from '../theme';
+import { T } from '../components/T';
+import { groupThousands } from '../lib/format';
+import { colors, displayHeavy, layout, mono, monoBold, s, screen, text } from '../theme';
 
 type Props = {
   title: Title;
@@ -38,6 +40,8 @@ export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Prop
   const isSeries = kindOf(title.titleType) === 'series';
   const kindLabel = isSeries ? 'Series' : 'Movie';
   const reduceMotion = useReduceMotion();
+  // the receipt's UP lands here, so up-then-down from "Pick another" is identity
+  const [pickNode, setPickNode] = useState<View | null>(null);
   // captured once per title, so the plex open below cannot race a "Pick another"
   const plexUrl = title.plexUrl;
 
@@ -64,7 +68,7 @@ export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Prop
     title.runtimeMinutes == null
       ? null
       : `${title.runtimeMinutes} min${isSeries ? ' / ep' : ''}`,
-    `${AXES.votes.fmt(title.numVotes)} votes`,
+    `${groupThousands(title.numVotes)} votes`,
   ].filter((m): m is string => m !== null);
 
   return (
@@ -77,38 +81,42 @@ export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Prop
         <View style={styles.grid}>
           <View style={styles.main}>
             <View style={styles.metaLine}>
-              <Text style={styles.score}>
+              <T style={styles.score}>
                 {title.averageRating.toFixed(1)}
-                <Text style={styles.star}> ★</Text>
-              </Text>
+                <T style={styles.star}> ★</T>
+              </T>
               {meta.flatMap((m) => [
                 <View key={`${m}-tick`} style={styles.tick} />,
-                <Text key={m} style={styles.metaText}>
+                <T key={m} style={styles.metaText}>
                   {m}
-                </Text>,
+                </T>,
               ])}
             </View>
 
-            <Text
+            <T
               testID="verdict-title"
-              style={[styles.title, title.primaryTitle.length > 18 && styles.titleLong]}
+              style={[
+                styles.title,
+                title.primaryTitle.length > 15 && styles.titleLong,
+                title.primaryTitle.length > 44 && styles.titleHuge,
+              ]}
               numberOfLines={2}
             >
               {title.primaryTitle}
-            </Text>
+            </T>
 
             <View style={styles.tags}>
               {title.genres.map((g) => (
-                <Text key={g} style={styles.tag}>
+                <T key={g} style={styles.tag}>
                   {g}
-                </Text>
+                </T>
               ))}
             </View>
 
             {title.plot ? (
-              <Text style={styles.plot} numberOfLines={3}>
+              <T style={styles.plot} numberOfLines={3}>
                 {title.plot}
-              </Text>
+              </T>
             ) : null}
 
             <View style={styles.actions}>
@@ -117,6 +125,7 @@ export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Prop
                 testID={testId.rollAgain}
                 onPress={onRollAgain}
                 hasTVPreferredFocus
+                ref={setPickNode}
                 style={styles.action}
               />
               <ActionButton
@@ -146,7 +155,7 @@ export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Prop
               missing or would not load. */}
           <View style={styles.posterCol}>
             <View style={styles.poster}>
-              <Text style={styles.posterKind}>{kindLabel}</Text>
+              <T style={styles.posterKind}>{kindLabel}</T>
               {title.posterUrl && !artFailed ? (
                 <Image
                   source={{ uri: title.posterUrl }}
@@ -159,25 +168,25 @@ export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Prop
                 <Reel />
               )}
               <View style={styles.posterFoot}>
-                <Text style={styles.posterScore}>{title.averageRating.toFixed(1)} ★</Text>
-                <Text style={styles.posterId}>{title.tconst}</Text>
+                <T style={styles.posterScore}>{title.averageRating.toFixed(1)} ★</T>
+                <T style={styles.posterId}>{title.tconst}</T>
               </View>
             </View>
             {/* the price of the artwork and the plot: TMDB requires
                 attribution wherever its data is shown */}
             {(title.plot || (title.posterUrl && !artFailed)) && (
-              <Text style={styles.credit}>art & plot — TMDB</Text>
+              <T style={styles.credit}>art & plot — TMDB</T>
             )}
           </View>
         </View>
 
-        <Receipt filters={filters} remaining={remaining} onPress={onBack} />
+        <Receipt filters={filters} remaining={remaining} onPress={onBack} focusUpTarget={pickNode} />
       </View>
 
       {thread > 0 && (
         <View style={styles.leader} pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants">
           <View style={styles.leaderRing} />
-          <Text style={styles.leaderNum}>{thread}</Text>
+          <T style={styles.leaderNum}>{thread}</T>
         </View>
       )}
     </View>
@@ -254,10 +263,12 @@ function Receipt({
   filters,
   remaining,
   onPress,
+  focusUpTarget,
 }: {
   filters: Filters;
   remaining: number;
   onPress: () => void;
+  focusUpTarget: View | null;
 }) {
   const parts: string[] = [
     filters.kinds.map((k) => (k === 'movie' ? 'Movies' : 'TV shows')).join(' + '),
@@ -278,17 +289,18 @@ function Receipt({
       accessibilityRole="button"
       accessibilityLabel={`Filters: ${parts.join(', ')}. ${remaining} left. Back to filters.`}
       onPress={onPress}
+      nextFocusUp={focusUpTarget ?? undefined}
       style={({ focused }) => [styles.receipt, focused && styles.receiptFocused]}
     >
-      <Text style={styles.receiptText} numberOfLines={1}>
+      <T style={styles.receiptText} numberOfLines={1}>
         {parts.join('  ·  ')}
         {genres.map(([genre, state]) => (
-          <Text key={genre} style={state === 'include' ? styles.inc : styles.exc}>
+          <T key={genre} style={state === 'include' ? styles.inc : styles.exc}>
             {`  ·  ${state === 'include' ? '+' : '−'} ${genre}`}
-          </Text>
+          </T>
         ))}
-      </Text>
-      <Text style={styles.receiptLeft}>{`${remaining} left`}</Text>
+      </T>
+      <T style={styles.receiptLeft}>{`${groupThousands(remaining)} left`}</T>
     </Pressable>
   );
 }
@@ -297,7 +309,7 @@ const styles = StyleSheet.create({
   grid: { flex: 1, flexDirection: 'row', gap: layout.gap },
   main: { width: layout.span(5) },
 
-  // the frame's own edges — full bleed: the film runs off the screen
+  // the frame's own edges — flush with the bezel: the film runs off the screen
   sprocketRow: {
     position: 'absolute',
     left: 0,
@@ -308,15 +320,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(232,230,220,0.05)',
   },
-  sprocketTop: { top: s(52) },
-  sprocketBottom: { bottom: s(52) },
+  sprocketTop: { top: 0 },
+  sprocketBottom: { bottom: 0 },
   sprocket: { width: s(18), height: s(13), borderRadius: s(3), backgroundColor: colors.boardLo },
 
   metaLine: { flexDirection: 'row', alignItems: 'center', gap: s(20), marginTop: s(18) },
   tick: { width: StyleSheet.hairlineWidth, height: s(28), backgroundColor: colors.slatHi },
   score: monoBold(44, { color: colors.sodium }),
   star: { fontSize: s(24) },
-  metaText: mono(24, { em: 0.2, caps: true, color: colors.dim }),
+  metaText: text.label,
 
   // the title stands in the gate light: silver emulsion, the bloom drawn as
   // room light in the Gate gradient — no text shadow, which ends in a seam
@@ -326,12 +338,15 @@ const styles = StyleSheet.create({
     color: colors.chalk,
     marginTop: s(16),
   }),
+  // the two drops keep a two-line title one dramatic line: 136 fills ~15 caps
+  // per column, 88 ~22, 64 ~30 — past 44 chars even 88 ellipsizes mid-word
   titleLong: displayHeavy(88, { em: -0.02 }),
+  titleHuge: displayHeavy(64, { em: -0.02 }),
 
-  tags: { flexDirection: 'row', gap: s(18), marginTop: s(30) },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: s(18), marginTop: s(28) },
+  // a selection, like its chip on the board: mixed case, not chrome caps
   tag: mono(23, {
-    em: 0.16,
-    caps: true,
+    em: 0.02,
     color: colors.dim,
     borderWidth: s(1),
     borderColor: colors.slatHi,
@@ -340,7 +355,7 @@ const styles = StyleSheet.create({
     borderRadius: s(2),
     overflow: 'hidden',
   }),
-  plot: mono(26, { lineHeight: 42, color: colors.dim, marginTop: s(26), maxWidth: layout.span(4) }),
+  plot: { ...text.body, lineHeight: s(42), color: colors.dim, marginTop: s(26), maxWidth: layout.span(4) },
 
   actions: { marginTop: 'auto', flexDirection: 'row', gap: s(28), paddingBottom: s(20) },
   // three actions share the five columns; a fixed span would overflow at the third
@@ -356,7 +371,7 @@ const styles = StyleSheet.create({
     borderColor: colors.slatHi,
     alignItems: 'center',
   },
-  posterKind: mono(22, { em: 0.24, caps: true, color: colors.dim }),
+  posterKind: mono(22, { em: 0.2, caps: true, color: colors.dim }),
   posterArt: { flex: 1, width: '100%', borderRadius: s(2), backgroundColor: colors.boardLo },
   reel: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   reelRim: {
@@ -399,7 +414,7 @@ const styles = StyleSheet.create({
   },
   posterScore: monoBold(24, { color: colors.sodium }),
   posterId: mono(24, { color: colors.dim }),
-  credit: mono(15, { em: 0.1, caps: true, color: colors.dim, marginTop: s(10), textAlign: 'center' }),
+  credit: mono(18, { em: 0.1, caps: true, color: colors.dim, marginTop: s(10), textAlign: 'center' }),
 
   // leader tape: one step above the unlit ground, amber ink for the count
   receipt: {

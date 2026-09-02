@@ -10,14 +10,13 @@ Android TV; also buildable for Apple TV, mobile and web.
 ## The API dependency
 
 The app is a client. It talks to a PostgREST-style **what-watch API** (`/title_full`)
-that serves the IMDb corpus — counts, filtered batches, random windows. See
-`consuming-the-api.md` for the measured spec the client is written against. Point it
+that serves the IMDb corpus — counts, filtered batches, random windows. Point it
 at the server with `EXPO_PUBLIC_API_URL` in `.env` (copy `.env.example`; `10.0.2.2`
 reaches the host from an emulator, a LAN address reaches it from a physical device).
 
-Plots and posters are the server's job: the ask lives in `tmdb-for-the-api.md`, and
-until it lands the verdict keeps its placeholder panel. `plex-slugs-for-the-api.md`
-is the same pattern for "Open in Plex".
+Plots and posters are the server's job, and until TMDB support lands on
+`title_full` the verdict keeps its placeholder panel; "Open in Plex" rides the
+same server-side lookup pattern.
 
 ## Run it
 
@@ -42,11 +41,3 @@ yarn checks        # tsx src/lib/checks.ts
 ```
 
 Both must be green at the end of every change; CI runs them on push.
-
-## Planning docs
-
-`PLAN.md` documents how the board was wired to the real API, `PLAN-plex.md` the
-"Open in Plex" experiment, and `tmdb-for-the-api.md` and `plex-slugs-for-the-api.md`
-the asks that would give the verdict its poster, plot and Plex link. They are written
-in a measured-facts style on purpose: every number in them was checked against a
-running server or device, not assumed.

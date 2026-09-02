@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ActionButton } from './ActionButton';
-import { colors, displayHeavy, layout, mono, s } from '../theme';
+import { T } from './T';
+import { colors, layout, mono, monoBold, s, text } from '../theme';
 import type { UpdateInfo } from '../update/compare';
 import { downloadUpdate, installUpdate } from '../update/installer';
 
@@ -42,26 +43,30 @@ export function UpdateCard({ info, testID = 'update-card', onHandedOff, onError 
   return (
     <View style={styles.card} testID={testID}>
       <View style={styles.head}>
-        <Text style={styles.version} testID={`${testID}-version`}>
+        <T style={styles.version} testID={`${testID}-version`}>
           {info.versionName}
-        </Text>
-        <Text style={styles.channelNote}>android asks once to allow installs</Text>
+        </T>
+        <T style={styles.channelNote}>android asks once to allow installs</T>
       </View>
 
       {info.changelog.length > 0 && (
         <View style={styles.changelog}>
-          {info.changelog.slice(0, 5).map((line, i) => (
-            <Text key={i} style={styles.line} numberOfLines={2}>
+          {/* three lines is the whole card's budget: the account screen has no
+              scroll, and a five-entry release pushes the version row off the
+              inset — slice, don't grow */}
+          {info.changelog.slice(0, 3).map((line, i) => (
+            <T key={i} style={styles.line} numberOfLines={2}>
               {'· '}
               {line}
-            </Text>
+            </T>
           ))}
         </View>
       )}
 
       {progress === null ? (
         <ActionButton
-          label={`Install ${info.versionName}`}
+          // the version is named right above; the ledger keeps digits out of Archivo
+          label="Install"
           testID={`${testID}-install`}
           onPress={install}
           style={styles.wide}
@@ -71,7 +76,7 @@ export function UpdateCard({ info, testID = 'update-card', onHandedOff, onError 
           <View style={styles.track}>
             <View style={[styles.fill, { width: `${Math.max(3, Math.round(progress * 100))}%` }]} />
           </View>
-          <Text style={styles.pct}>{Math.round(progress * 100)}%</Text>
+          <T style={styles.pct}>{Math.round(progress * 100)}%</T>
         </View>
       )}
     </View>
@@ -88,11 +93,12 @@ const styles = StyleSheet.create({
     gap: s(12),
   },
   head: { gap: s(4) },
-  version: displayHeavy(32, { em: -0.02, color: colors.sodium }),
-  channelNote: mono(22, { em: 0.1, caps: true, color: colors.dimmer }),
+  // a version is a number, so the ledger carries it — not Archivo
+  version: monoBold(32, { color: colors.sodium }),
+  channelNote: mono(22, { em: 0.1, caps: true, color: colors.dim }),
 
   changelog: { gap: s(4) },
-  line: mono(26, { color: colors.chalk }),
+  line: { ...text.body, color: colors.chalk },
 
   wide: { width: '100%' },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: s(16), height: s(80) },
@@ -104,5 +110,5 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   fill: { height: '100%', backgroundColor: colors.sodium },
-  pct: mono(26, { em: 0.1, color: colors.chalk, minWidth: s(90), textAlign: 'right' }),
+  pct: monoBold(26, { color: colors.chalk, minWidth: s(90), textAlign: 'right' }),
 });

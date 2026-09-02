@@ -34,10 +34,9 @@ Your corpus, no algorithm. Exact match counts, user-owned filters, watched-list 
 - exact count of remaining matches, debounced per "done fiddling", shown as a split-flap counter; roll fetches a batch of 20 and drains it
 - session-level no-repeat (`shown` list); watched-list exclusion happens server-side when a session token rides the request
 - account: email/password sign-in and registration on-device (remote typing kept to exactly two fields by design)
-- verdict screen: title, rating, year, runtime, votes, genres, plot (when the API serves it), placeholder poster panel until TMDB support lands (`tmdb-for-the-api.md` is the open ask); "Open in Plex" is a planned same-pattern ask (`plex-slugs-for-the-api.md`)
+- verdict screen: title, rating, year, runtime, votes, genres, plot (when the API serves it), placeholder poster panel until TMDB support lands server-side; "Open in Plex" rides the same server-side lookup pattern
 - Android TV overscan respected (5% inset); `REQUEST_INSTALL_PACKAGES` exists solely for the OTA handoff
 - undecided: none recorded beyond the two open server asks above
-
 ## Brand Commitments
 
 - the name/wordmark is **what.watch** (lowercase, the dot rendered as the one amber accent — a visual fact already committed in the incumbent system, recorded here because the wordmark is identity, not styling)
@@ -45,9 +44,6 @@ Your corpus, no algorithm. Exact match counts, user-owned filters, watched-list 
 
 ## Evidence on Hand
 
-- measured API spec: `consuming-the-api.md` (client written against it)
-- open server asks with measured context: `tmdb-for-the-api.md`, `plex-slugs-for-the-api.md`
-- planning docs in measured-facts style: `PLAN.md` (board wiring), `PLAN-plex.md`, `PLAN-update.md` (OTA), `ota-updates.md` (release runbook)
 - device screenshots: `artifacts/` (board, slider states, tri-state, verdict, dock)
 - no testimonials, customers, or press exist; nothing here may fabricate them
 

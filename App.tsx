@@ -32,7 +32,7 @@ import {
 } from '@expo-google-fonts/chivo-mono';
 
 import { buildQuery, fetchBatch, fetchCount, setUnauthorizedHandler, withShown } from './src/api/client';
-import { deviceLogin, deviceTag, loadSession, saveSession, clearSession, type Session } from './src/api/auth';
+import { deviceLogin, loadSession, saveSession, clearSession, type Session } from './src/api/auth';
 import type { Filters, Title } from './src/api/types';
 import { THIS_YEAR } from './src/config/filters';
 import { Board } from './src/screens/Board';
@@ -307,7 +307,6 @@ export default function App() {
           notice={notice}
           onRoll={roll}
           focusRoll={returned}
-          accountLabel={session ? deviceTag(session.deviceId) : 'device…'}
           onOpenAccount={openAccount}
           updateAvailable={update !== null}
           onOpenUpdate={openAccount}

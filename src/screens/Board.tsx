@@ -1,14 +1,16 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Filters, Genre, TitleKind } from '../api/types';
 import { ActionButton } from '../components/ActionButton';
+import { T } from '../components/T';
 import { Flaps } from '../components/Flaps';
 import { AXES, GENRES, KINDS, testId, type RangeKey } from '../config/filters';
 import { Chip, type ChipState } from '../components/Chip';
 import { GridRow } from '../components/GridRow';
 import { RangeSlider, type Editing } from '../components/RangeSlider';
-import { COLS, colors, displayHeavy, layout, mono, s, screen } from '../theme';
+import { groupThousands } from '../lib/format';
+import { COLS, colors, displayHeavy, layout, mono, s, screen, text } from '../theme';
 
 type Props = {
   filters: Filters;
@@ -25,15 +27,13 @@ type Props = {
   onRoll: () => void;
   /** True when arriving back from a verdict, so the pick button takes focus on mount. */
   focusRoll?: boolean;
-  /** The head-right chip: the account when signed in, sign-in when not. */
-  accountLabel: string;
   onOpenAccount: () => void;
   /** An update was found; the banner is a pointer, the card lives on the account screen. */
   updateAvailable: boolean;
   onOpenUpdate: () => void;
 };
 
-export function Board({ filters, setFilters, count, picking, pending, corpus, notice, onRoll, focusRoll, accountLabel, onOpenAccount, updateAvailable, onOpenUpdate }: Props) {
+export function Board({ filters, setFilters, count, picking, pending, corpus, notice, onRoll, focusRoll, onOpenAccount, updateAvailable, onOpenUpdate }: Props) {
   // Android's FocusFinder scores by centre distance, so a full-width slider is
   // unreachable from a left-hand chip however close it is. Every row that sits
   // next to a slider therefore names it explicitly. See GridRow.
@@ -45,6 +45,9 @@ export function Board({ filters, setFilters, count, picking, pending, corpus, no
   const [yearNode, setYearNode] = useState<View | null>(null);
   const [votesNode, setVotesNode] = useState<View | null>(null);
   const [rollNode, setRollNode] = useState<View | null>(null);
+  // the Type row's first cell: up from the rating slider lands on column 1, so
+  // down-then-up returns to the same chip instead of geometry's centre guess
+  const [typeFirst, setTypeFirst] = useState<View | null>(null);
 
   // At most one slider is armed at a time, tracked here rather than inside
   // each RangeSlider: a bare touch or a pointer-mode IR remote can activate a
@@ -112,19 +115,19 @@ export function Board({ filters, setFilters, count, picking, pending, corpus, no
     <View style={screen.root}>
       <View style={screen.safe}>
         <View style={styles.head}>
-          <Text style={styles.wordmark}>
-            what<Text style={styles.wordmarkDot}>.</Text>watch
-          </Text>
+          <T style={styles.wordmark}>
+            what<T style={styles.wordmarkDot}>.</T>watch
+          </T>
           <View style={styles.headRight}>
             {/* the counter lives in the corner: it is feedback, not a control,
                 and the dock belongs to the action and its warnings. The corpus
                 rides beside it, small and quiet — context for those looking
                 for it, invisible to those who are not */}
             <View style={styles.counter} testID="dock-count" accessible accessibilityLabel={`${total} titles left`}>
-              <Text style={styles.dockLabel}>Titles left:</Text>
+              <T style={styles.dockLabel}>Titles left:</T>
               <Flaps value={total} settled={settled} />
               {corpus !== null && (
-                <Text style={styles.corpusNote}>(out of {groupThousands(corpus)})</Text>
+                <T style={styles.corpusNote}>(out of {groupThousands(corpus)})</T>
               )}
             </View>
             {updateAvailable && (
@@ -135,24 +138,32 @@ export function Board({ filters, setFilters, count, picking, pending, corpus, no
                 onPress={onOpenUpdate}
                 style={({ focused }) => [styles.accountChip, styles.updateChip, focused && styles.accountChipFocused]}
               >
-                <Text style={styles.updateLabel}>● update ready</Text>
+                <T style={styles.updateLabel}>● update ready</T>
               </Pressable>
             )}
+            {/* the way into the list. It is a control, not a status light: the
+                device name is metadata and lives on the list screen — the chip
+                speaks the board's own chip grammar (raised slat, two lines,
+                ring + lift on focus) and says what is behind the door. */}
             <Pressable
               testID="board-account"
               accessibilityRole="button"
-              accessibilityLabel="Account"
+              accessibilityLabel="Your list — import your IMDb titles"
               onPress={onOpenAccount}
               style={({ focused }) => [styles.accountChip, focused && styles.accountChipFocused]}
             >
-              <Text style={[styles.accountLabel, !!accountLabel && styles.accountLabelOn]}>● {accountLabel}</Text>
+              {({ focused }) => (
+                <>
+                  <T style={[styles.accountName, focused && styles.accountNameFocused]}>Import from IMDb</T>
+                </>
+              )}
             </Pressable>
           </View>
         </View>
 
         <View style={styles.blocks}>
           <Block label="Type">
-            <GridRow rowFocusDown={ratingNode}>
+            <GridRow rowFocusDown={ratingNode} registerFirst={setTypeFirst}>
               {KINDS.map((k) => (
                 <Chip
                   key={k.value}
@@ -181,6 +192,7 @@ export function Board({ filters, setFilters, count, picking, pending, corpus, no
             registerNode={setRatingNode}
             sliderNode={ratingNode}
             sliderBelow={yearNode}
+            sliderAbove={typeFirst}
           />
           <RangeBlock
             rangeKey="year"
@@ -295,9 +307,9 @@ function Dock({
 
   return (
     <View style={styles.dock}>
-      <Text style={styles.warn} numberOfLines={2}>
+      <T style={styles.warn} numberOfLines={2}>
         {notice ? notice : empty ? 'Nothing in here — widen a range' : total < 40 ? 'Very thin' : ''}
-      </Text>
+      </T>
       <ActionButton
         label={picking ? 'Picking…' : "Pick tonight's show"}
         disabled={empty}
@@ -332,6 +344,7 @@ function RangeBlock({
   registerNode,
   sliderNode,
   sliderBelow,
+  sliderAbove,
 }: {
   rangeKey: RangeKey;
   filters: Filters;
@@ -348,6 +361,9 @@ function RangeBlock({
   sliderNode: View | null;
   /** The next range's slider, which its band row points down at. */
   sliderBelow: View | null;
+  /** The first cell of the row above the slider (the Type chips), so up from
+   *  the slider is a straight hop, not a centre-distance guess. */
+  sliderAbove?: View | null;
 }) {
   const axis = AXES[rangeKey];
   const value = filters[rangeKey];
@@ -381,6 +397,7 @@ function RangeBlock({
         onChange={(next) => setFilters({ ...filters, [rangeKey]: next })}
         testID={testId.slider(rangeKey)}
         nextFocusDown={firstBand}
+        nextFocusUp={sliderAbove}
         registerNode={registerNode}
         selfNode={sliderNode}
         editing={editing}
@@ -409,14 +426,12 @@ function RangeBlock({
   );
 }
 
-const groupThousands = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-
 function Block({ label, aside, children }: { label: string; aside?: string; children: ReactNode }) {
   return (
     <View style={styles.block}>
       <View style={styles.blockHead}>
-        <Text style={styles.label}>{label}</Text>
-        {aside ? <Text style={styles.label}>{aside}</Text> : null}
+        <T style={styles.label}>{label}</T>
+        {aside ? <T style={styles.label}>{aside}</T> : null}
       </View>
       {children}
     </View>
@@ -435,31 +450,46 @@ const styles = StyleSheet.create({
   wordmark: displayHeavy(32, { em: -0.03, color: colors.chalk }),
   wordmarkDot: { color: colors.sodium },
 
-  headRight: { flexDirection: 'row', alignItems: 'center', gap: s(20) },
+  headRight: { flexDirection: 'row', alignItems: 'center', gap: s(28) },
+  // the account door borrows the Chip's exact grammar — raised slat, two lines,
+  // focus as ring + lift + brighten — so it reads as one of the board's controls
   accountChip: {
-    borderWidth: layout.border,
-    borderColor: colors.slatHi,
-    borderRadius: layout.radius,
-    paddingVertical: s(8),
+    height: s(54),
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: s(3),
     paddingHorizontal: s(16),
+    backgroundColor: colors.slat,
+    borderRadius: layout.radius,
+    borderWidth: layout.border,
+    borderColor: 'transparent',
   },
-  accountChipFocused: { borderColor: colors.sodium, backgroundColor: colors.slat },
-  accountLabel: mono(24, { em: 0.15, caps: true, color: colors.dim }),
-  accountLabelOn: { color: colors.sodium },
+  accountChipFocused: {
+    borderColor: colors.sodium,
+    transform: [{ scale: 1.05 }],
+    elevation: 12,
+    zIndex: 3,
+  },
+  accountName: mono(22, { em: 0.02, color: colors.dim }),
+  accountNameFocused: { color: colors.chalk },
   updateChip: { borderColor: colors.sodium },
-  updateLabel: mono(24, { em: 0.15, caps: true, color: colors.sodium }),
+  updateLabel: mono(24, { em: 0.2, caps: true, color: colors.sodium }),
 
-  blocks: { paddingTop: s(4), gap: s(6) },
+  // the cadence: s(4) inside a block, s(14) between blocks — grouping is the
+  // gap contrast, not containers; a slider and its bands are one group
+  blocks: { paddingTop: s(2), gap: s(14) },
   block: { gap: s(4) },
   blockHead: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
-    height: s(30),
+    // 2px under the label's own line box: the mono leading absorbs it, and
+    // the chip rows below need the height more than the head does
+    height: s(28),
   },
   dock: {
     marginTop: 'auto',
-    paddingTop: s(6),
+    paddingTop: s(2),
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.slatHi,
     flexDirection: 'row',
@@ -467,9 +497,9 @@ const styles = StyleSheet.create({
     gap: layout.gap,
   },
   counter: { flexDirection: 'row', alignItems: 'center', gap: s(8) },
-  dockLabel: mono(24, { em: 0.2, caps: true, color: colors.dim }),
+  dockLabel: text.label,
   corpusNote: mono(18, { em: 0.08, caps: true, color: colors.dim }),
-  warn: mono(24, { em: 0.1, caps: true, color: colors.cold, width: layout.span(4) }),
+  warn: { ...text.notice, width: layout.span(4) },
   roll: { width: layout.span(3) },
-  label: mono(24, { em: 0.2, caps: true, color: colors.dim }),
+  label: text.label,
 });

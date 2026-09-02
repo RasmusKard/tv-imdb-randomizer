@@ -5,11 +5,19 @@ on:
     branches: [main]
   pull_request:
 
+# fork PRs are always read-only; this also drops the writable default token
+# for runs on same-repo branches
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # leave no GITHUB_TOKEN behind in .git/config for install scripts to find
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22

@@ -10,8 +10,7 @@ import type { UpdateInfo } from './compare';
  * computes the APK's MD5 natively (the new API cannot, and hashing 50 MB in
  * JS on a low-RAM TV stick is not a plan), and getContentUriAsync turns the
  * file:// path into a content:// URI through Expo's own FileProvider, which
- * is the only thing the installer intent is allowed to read. Shape follows
- * PLAN-update.md.
+ * is the only thing the installer intent is allowed to read.
  */
 
 const UPDATES_DIR = 'updates';

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BackHandler, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { BackHandler, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Network from 'expo-network';
 import { File } from 'expo-file-system';
@@ -8,9 +8,11 @@ import QRCode from 'react-native-qrcode-svg';
 import { pushWatched, type Session } from '../api/auth';
 import { extractImdbIds } from '../lib/csv';
 import { ActionButton } from '../components/ActionButton';
+import { T } from '../components/T';
 import { GridRow } from '../components/GridRow';
 import { startUploadServer, type UploadOutcome } from '../server/uploadServer';
-import { colors, displayHeavy, layout, mono, s, screen } from '../theme';
+import { groupThousands } from '../lib/format';
+import { colors, displayHeavy, layout, mono, monoBold, s, screen, text } from '../theme';
 
 type Props = {
   session: Session;
@@ -57,17 +59,24 @@ export function Import({ session, onBack, onImported }: Props) {
           addLog(`${source}: no IMDb ids found — is it an IMDb export?`, 'err');
           return { ok: false, error: 'No IMDb ids (Const column) in that file — is it an IMDb export?' };
         }
-        addLog(`${source}: ${group(ids.length)} ids, pushing…`);
+        addLog(`${source}: ${groupThousands(ids.length)} ids, pushing…`);
         try {
           const r = await pushWatched(sessionRef.current.token, ids);
           setTotals({ found: ids.length, added: r.added, total: r.total });
-          addLog(`${source}: ${group(r.added)} new, ${group(r.total)} watched in total`, 'ok');
+          addLog(`${source}: ${groupThousands(r.added)} new, ${groupThousands(r.total)} watched in total`, 'ok');
           onImported();
           return { ok: true, added: r.added, total: r.total };
         } catch (e) {
-          const message = (e as { message?: string }).message ?? 'push failed';
-          addLog(`${source}: ${message}`, 'err');
-          return { ok: false, error: message === 'watched push failed: 401' ? 'device session expired — try again' : message };
+          const message = (e as { message?: string }).message ?? '';
+          // a raw status is log-speak, not copy: the 401 gets its own line
+          // (the session is dead), everything else reads as one server refusal
+          const error = message === 'watched push failed: 401'
+            ? 'device session expired — try again'
+            : /watched push failed/.test(message) || !message
+              ? 'the server refused part of that — try again'
+              : message;
+          addLog(`${source}: ${error}`, 'err');
+          return { ok: false, error };
         }
       };
       const next = chain.current.then(run, run);
@@ -109,11 +118,16 @@ export function Import({ session, onBack, onImported }: Props) {
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      // the input grammar: back closes the open row first, exits second
+      if (pasteOpen) {
+        setPasteOpen(false);
+        return true;
+      }
       onBack();
       return true;
     });
     return () => sub.remove();
-  }, [onBack]);
+  }, [onBack, pasteOpen]);
 
   const pickFile = useCallback(async () => {
     try {
@@ -137,12 +151,16 @@ export function Import({ session, onBack, onImported }: Props) {
     <View style={screen.root}>
       <View style={screen.safe}>
         <View style={styles.head}>
-          <Text style={styles.wordmark}>
-            sync your <Text style={styles.wordmarkDot}>list</Text>
-          </Text>
-          <Text style={styles.label}>
-            {url ? 'scan the code with your phone — it opens the upload page' : 'starting the upload server…'}
-          </Text>
+          <T style={styles.wordmark}>
+            sync your <T style={styles.wordmarkDot}>list</T>
+          </T>
+          <T style={styles.label}>
+            {fatal
+              ? 'no upload server — paste CSV is the way in'
+              : url
+                ? 'scan the code with your phone — it opens the upload page'
+                : 'starting the upload server…'}
+          </T>
         </View>
 
         <View style={styles.body}>
@@ -152,34 +170,40 @@ export function Import({ session, onBack, onImported }: Props) {
                 <View style={styles.qrCard}>
                   <QRCode value={url} size={s(380)} backgroundColor="#FFFFFF" color={colors.boardLo} />
                 </View>
-                <Text style={styles.url} selectable>
+                <T style={styles.url} selectable>
                   {url}
-                </Text>
+                </T>
               </>
             ) : (
-              <Text style={styles.waiting}>{fatal ?? 'Same Wi-Fi as your phone, in a moment…'}</Text>
+              <T style={fatal ? styles.fatal : styles.waiting}>
+                {fatal ?? 'Same Wi-Fi as your phone, in a moment…'}
+              </T>
             )}
           </View>
 
           <View style={styles.side}>
-            <Text style={styles.step}>1 · On your phone: imdb.com, sign in</Text>
-            <Text style={styles.step}>2 · Account menu → Your ratings → Export</Text>
-            <Text style={styles.step}>3 · Open this page on the phone, drop ratings.csv</Text>
+            <T style={styles.step}>1 · On your phone: imdb.com, sign in</T>
+            <T style={styles.step}>2 · Account menu → Your ratings → Export</T>
+            <T style={styles.step}>3 · Open this page on the phone, drop ratings.csv</T>
 
-            <View style={styles.logBox}>
-              {totals ? (
-                <Text style={styles.totals}>
-                  found {group(totals.found)} · added {group(totals.added)} · watched {group(totals.total)}
-                </Text>
-              ) : null}
-              <ScrollView>
-                {log.map((l, i) => (
-                  <Text key={i} style={l.kind === 'ok' ? styles.logOk : l.kind === 'err' ? styles.logErr : styles.logInfo}>
-                    {l.text}
-                  </Text>
-                ))}
-              </ScrollView>
-            </View>
+            {/* the log lives here only once there is a log: an empty bordered
+                strip is a container doing proximity's job */}
+            {(totals !== null || log.length > 0) && (
+              <View style={styles.logBox}>
+                {totals ? (
+                  <T style={styles.totals}>
+                    found {groupThousands(totals.found)} · added {groupThousands(totals.added)} · watched {groupThousands(totals.total)}
+                  </T>
+                ) : null}
+                <ScrollView focusable={false}>
+                  {log.map((l, i) => (
+                    <T key={i} style={l.kind === 'ok' ? styles.logOk : l.kind === 'err' ? styles.logErr : styles.logInfo}>
+                      {l.text}
+                    </T>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
 
             {pasteOpen ? (
               <TextInput
@@ -187,6 +211,7 @@ export function Import({ session, onBack, onImported }: Props) {
                 value={pasteText}
                 onChangeText={setPasteText}
                 multiline
+                allowFontScaling={false}
                 placeholder="paste the contents of ratings.csv here"
                 placeholderTextColor={colors.dim}
                 testID="import-paste-input"
@@ -197,8 +222,10 @@ export function Import({ session, onBack, onImported }: Props) {
 
         <View style={styles.dock}>
           <GridRow>
-            {HAS_PICKER ? (
-              <ActionButton label="Pick CSV" testID="import-pick" onPress={pickFile} style={styles.button} hasTVPreferredFocus={!pasteOpen} />
+            {/* paste mode replaces pick mode: four span(2) buttons would be
+                eight columns, and the back button would leave the screen */}
+            {HAS_PICKER && !pasteOpen ? (
+              <ActionButton label="Pick CSV" testID="import-pick" onPress={pickFile} style={styles.button} hasTVPreferredFocus={!fatal} />
             ) : null}
             {pasteOpen ? (
               <ActionButton label="Import pasted" testID="import-paste-go" onPress={importPaste} style={styles.button} hasTVPreferredFocus={!HAS_PICKER} />
@@ -208,6 +235,8 @@ export function Import({ session, onBack, onImported }: Props) {
               variant="ghost"
               testID="import-paste"
               onPress={() => setPasteOpen(!pasteOpen)}
+              // with no server there is exactly one working route in; it leads
+              hasTVPreferredFocus={!!fatal && !pasteOpen}
               style={styles.button}
             />
             <ActionButton label="Back" variant="ghost" testID="import-back" onPress={onBack} style={styles.button} />
@@ -218,20 +247,18 @@ export function Import({ session, onBack, onImported }: Props) {
   );
 }
 
-const group = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-
 const styles = StyleSheet.create({
   head: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    paddingBottom: s(12),
+    paddingBottom: s(8),
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.slatHi,
   },
   wordmark: displayHeavy(32, { em: -0.03, color: colors.chalk }),
   wordmarkDot: { color: colors.sodium },
-  label: mono(26, { em: 0.2, caps: true, color: colors.dim }),
+  label: text.label,
 
   body: { flexDirection: 'row', gap: layout.gap, paddingTop: s(20) },
   qrColumn: { width: layout.span(3), alignItems: 'center', gap: s(14) },
@@ -242,13 +269,15 @@ const styles = StyleSheet.create({
     borderRadius: layout.radius,
   },
   url: mono(24, { color: colors.chalk, textAlign: 'center' }),
-  waiting: mono(26, { color: colors.dim, textAlign: 'center', marginTop: s(180) }),
+  waiting: { ...text.body, color: colors.dim, textAlign: 'center', marginTop: s(180) },
+  /** the warning voice: a dead server is a warning, not a quiet aside */
+  fatal: { ...text.notice, textAlign: 'center' },
 
-  side: { flex: 1, gap: s(10) },
-  step: mono(28, { em: 0.05, color: colors.chalk }),
+  side: { width: layout.span(4), gap: s(10) },
+  step: { ...text.body, color: colors.chalk },
 
   logBox: {
-    flex: 1,
+    height: s(160),
     backgroundColor: colors.boardLo,
     borderColor: colors.slatHi,
     borderWidth: layout.border,
@@ -256,22 +285,21 @@ const styles = StyleSheet.create({
     padding: s(12),
     gap: s(6),
   },
-  totals: mono(26, { em: 0.05, caps: true, color: colors.sodium }),
+  totals: monoBold(26, { em: 0.08, caps: true, color: colors.sodium }),
   logInfo: mono(22, { color: colors.dim }),
   logOk: mono(22, { color: colors.sodium }),
   logErr: mono(22, { color: colors.cold }),
 
   paste: {
+    ...mono(22, { color: colors.chalk }),
     backgroundColor: colors.slat,
     borderColor: colors.slatHi,
     borderWidth: layout.border,
     borderRadius: layout.radius,
-    color: colors.chalk,
-    fontSize: s(22),
     padding: s(12),
     height: s(160),
   },
 
-  dock: { marginTop: 'auto', paddingTop: s(10) },
+  dock: { marginTop: 'auto', paddingTop: s(2), borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.slatHi },
   button: { width: layout.span(2) },
 });

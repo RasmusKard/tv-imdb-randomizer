@@ -12,6 +12,12 @@ on:
 permissions:
   contents: write
 
+# queue concurrent releases instead of cancelling: two tag pushes racing on
+# the `latest` release must not interleave their uploads
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 env:
   TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
@@ -23,6 +29,8 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           fetch-depth: 0
+          # gh uses GH_TOKEN from env; no git pushes here, so leave no token in .git/config
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22

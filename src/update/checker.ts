@@ -5,7 +5,7 @@ import { pickUpdate, type Manifest, type UpdateInfo } from './compare';
 
 /**
  * The OTA check. The manifest is a static JSON published to a GitHub
- * "latest" release (see PLAN-update.md) — there is no update server, only a
+ * "latest" release — there is no update server, only a
  * file this build was pointed at through EXPO_PUBLIC_UPDATE_MANIFEST_URL.
  */
 
