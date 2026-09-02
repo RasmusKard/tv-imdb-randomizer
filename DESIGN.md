@@ -81,19 +81,19 @@ components:
     textColor: "{colors.dim}"
     typography: "{typography.mono}"
     rounded: "{rounded.sm}"
-    height: "58px"
+    height: "54px"
   chip-on:
     backgroundColor: "{colors.sodium}"
     textColor: "{colors.onSodium}"
     typography: "{typography.monoBold}"
     rounded: "{rounded.sm}"
-    height: "58px"
+    height: "54px"
   chip-excluded:
     backgroundColor: "{colors.boardLo}"
     textColor: "{colors.cold}"
     typography: "{typography.mono}"
     rounded: "{rounded.sm}"
-    height: "58px"
+    height: "54px"
   input:
     backgroundColor: "{colors.slat}"
     textColor: "{colors.chalk}"
@@ -160,7 +160,6 @@ A narrow warm band on an ink field: two ambers, one cyan, one white, and a ladde
 - **Slat Edge** (slatHi, #232329): hairline rules, borders, slider handles at rest, flap tiles.
 - **Lit Slat** (slatLit, #33333B): a handle once its slider has focus — the surface one step more lit.
 - **Emulsion White** (chalk, #E8E6DC): titles, primary text, the focused solid button's border.
-- **Dim Silver** (dim, #8A8878): muted labels, unselected chip names, the receipt body.
 - **Dim Silver** (dim, #8A8878): muted labels, unselected chip names, the receipt body, the flap tiles' quiet digits — the one de-emphasis step below lit text.
 
 Amber light also appears as alpha steps of the same hex — rgba(255,176,46,0.12/0.16/0.18/0.22/0.32) for glow shells, chip focus tints and the armed slider — and chalk as rgba(232,230,220,0.03–0.25) for the sign panel, sprocket strips and leader ring. These are the lamp at intensities, not new colors. The one surface outside the palette is the QR card on the import screen, which renders white because scanners read dark-on-light far more reliably; it is a machine target, not part of the booth. The phone-side upload page it opens is the same kind of machine target, set in the phone's own system UI at phone sizes.

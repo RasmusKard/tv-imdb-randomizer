@@ -1,3 +1,5 @@
+# This repository is me testing out vibe-coding, wouldn't recommend using any of the code from it!
+
 # what.watch
 
 A random-episode/night's-pick shuffler for Android TV. It filters a corpus of 534 836
