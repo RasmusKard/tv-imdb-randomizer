@@ -1,6 +1,5 @@
 import type { Filters, Genre, Title, TitleKind } from './types';
-import { authHeaders } from './auth';
-import { BASE } from './base';
+import { BASE, authHeaders } from './base';
 import { AXES, type RangeKey } from '../config/filters';
 
 const SERIES = 'tvSeries,tvMiniSeries';

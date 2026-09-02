@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Application from 'expo-application';
 
-import { BASE } from './base';
+import { BASE, authHeaders } from './base';
 
 /**
  * The account, and the watched list. The account is the device itself: the
@@ -54,16 +54,6 @@ export async function saveSession(s: Session): Promise<void> {
 
 export async function clearSession(): Promise<void> {
   await AsyncStorage.removeItem(TOKEN_KEY);
-}
-
-/**
- * A token riding every title query. The server excludes this user's watched
- * titles from `title_full` when it sees a valid Bearer — an invalid or expired
- * one reads as anonymous instead of erroring, so the failure mode is "titles
- * come back that the user has already seen", never a dead board.
- */
-export function authHeaders(token: string | undefined): Record<string, string> {
-  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 /**

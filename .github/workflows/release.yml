@@ -59,12 +59,21 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
+      - name: Require an API URL for the release bundle
+        # base.ts only falls back to the LAN proxy for dev bundles; a release
+        # without this would ship with no API at all, so fail here, not on TVs
+        run: test -n "$EXPO_PUBLIC_API_URL"
+        env:
+          EXPO_PUBLIC_API_URL: ${{ secrets.API_URL }}
+
       - name: Build the release APK
         run: cd android && ./gradlew assembleRelease
         env:
           # baked into the JS bundle at metro time; falls back to this repo's
           # own latest-release manifest
           EXPO_PUBLIC_UPDATE_MANIFEST_URL: ${{ secrets.UPDATE_MANIFEST_URL || format('https://github.com/{0}/releases/download/latest/update-manifest.json', github.repository) }}
+          # baked in the same way; the step above already proved it non-empty
+          EXPO_PUBLIC_API_URL: ${{ secrets.API_URL }}
 
       - name: Name the APK after the release
         run: |
