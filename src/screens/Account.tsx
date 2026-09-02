@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { AccessibilityInfo, BackHandler, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AccessibilityInfo, BackHandler, StyleSheet, Text, View } from 'react-native';
 
-import { fetchWatched, login, register, type Session } from '../api/auth';
+import { deviceTag, fetchWatched, type Session } from '../api/auth';
 import { ActionButton } from '../components/ActionButton';
 import { UpdateCard } from '../components/UpdateCard';
 import type { UpdateInfo } from '../update/compare';
@@ -10,7 +10,6 @@ import { colors, displayHeavy, layout, mono, s, screen } from '../theme';
 
 type Props = {
   session: Session | null;
-  onSession: (s: Session | null) => void;
   onImport: () => void;
   onBack: () => void;
   /** An update the app has found and is offering; lives here so the board banner can point at it. */
@@ -19,16 +18,12 @@ type Props = {
 };
 
 /**
- * The account screen: a sign-in form when signed out, the account summary and
- * the way into the CSV import when signed in. Remote typing is miserable, so
- * the form is exactly two fields and two actions — register reuses the same
- * fields, since the server's register is login-plus-signup anyway.
+ * The account screen. The account is the device itself — there is nothing to
+ * sign in or out of — so this is a summary and the way into the CSV import.
+ * The update row lives here too, as it always has: updates have nothing to do
+ * with the account.
  */
-export function Account({ session, onSession, onImport, onBack, update, onUpdate }: Props) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
-  const [busy, setBusy] = useState(false);
+export function Account({ session, onImport, onBack, update, onUpdate }: Props) {
   const [notice, setNotice] = useState<string | null>(null);
 
   // account notices change silently otherwise; announce them for TalkBack
@@ -36,24 +31,13 @@ export function Account({ session, onSession, onImport, onBack, update, onUpdate
     if (notice) AccessibilityInfo.announceForAccessibility(notice);
   }, [notice]);
 
-  // A TV TextInput that holds focus eats the D-pad for its caret, so the
-  // fields are rows first: OK opens one for typing, back or DONE closes it —
-  // the same walk-in/walk-out grammar the slider uses.
-  const [editing, setEditing] = useState<'email' | 'password' | null>(null);
-
-  // back closes an open field before it leaves the screen; on the board it
-  // exits without a confirmation, which is what the Android TV guidance asks for
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (editing) {
-        setEditing(null);
-        return true;
-      }
       onBack();
       return true;
     });
     return () => sub.remove();
-  }, [editing, onBack]);
+  }, [onBack]);
 
   const [watchedCount, setWatchedCount] = useState<number | null>(null);
   useEffect(() => {
@@ -71,32 +55,7 @@ export function Account({ session, onSession, onImport, onBack, update, onUpdate
     };
   }, [session]);
 
-  const submit = useCallback(async () => {
-    if (busy || !email.includes('@') || password.length < 1) {
-      setNotice('enter an email and a password');
-      return;
-    }
-    setBusy(true);
-    setNotice(null);
-    try {
-      const s = mode === 'signup' ? await register(email.trim(), password) : await login(email.trim(), password);
-      onSession(s);
-      setPassword('');
-    } catch (e) {
-      setNotice((e as { message?: string }).message ?? 'couldn\u2019t sign in — try again');
-    } finally {
-      setBusy(false);
-    }
-  }, [busy, email, password, mode, onSession]);
-
-  const signOut = useCallback(() => {
-    onSession(null);
-    setWatchedCount(null);
-    setMode('signin');
-  }, [onSession]);
-
-  // updates have nothing to do with the account — the row lives below the
-  // form either way. A manual check always answers, unlike the daily one.
+  // a manual check always answers, unlike the daily one.
   const version = installedVersion();
   const [checking, setChecking] = useState(false);
   const checkForUpdates = useCallback(async () => {
@@ -124,86 +83,17 @@ export function Account({ session, onSession, onImport, onBack, update, onUpdate
           <Text style={styles.label}>titles you have watched never roll again</Text>
         </View>
 
-        {session ? (
-          <View style={styles.form}>
-            <Row label="Signed in as">
-              <Text style={styles.value}>{session.email}</Text>
-            </Row>
-            <Row label="Titles watched">
-              <Text style={styles.value}>{watchedCount !== null ? group(watchedCount) : '—'}</Text>
-            </Row>
-            <View style={styles.row}>
-              <ActionButton label="Import CSV" testID="account-import" onPress={onImport} style={styles.wide} hasTVPreferredFocus />
-            </View>
-            <View style={styles.row}>
-              <ActionButton label="Sign out" variant="ghost" testID="account-signout" onPress={signOut} style={styles.wide} />
-            </View>
+        <View style={styles.form}>
+          <Row label="Device">
+            <Text style={styles.value}>{session ? deviceTag(session.deviceId) : 'signing in…'}</Text>
+          </Row>
+          <Row label="Titles watched">
+            <Text style={styles.value}>{watchedCount !== null ? group(watchedCount) : '—'}</Text>
+          </Row>
+          <View style={styles.row}>
+            <ActionButton label="Import CSV" testID="account-import" onPress={onImport} style={styles.wide} hasTVPreferredFocus />
           </View>
-        ) : (
-          <View style={styles.form}>
-            <Row label="Email">
-              <Field
-                open={editing === 'email'}
-                onOpen={() => setEditing('email')}
-                testID="account-email"
-                label="Email"
-                initialFocus
-              >
-                <TextInput
-                  style={styles.input}
-                  value={email}
-                  onChangeText={setEmail}
-                  editable={editing === 'email'}
-                  focusable={editing === 'email'}
-                  pointerEvents={editing === 'email' ? 'auto' : 'none'}
-                  hasTVPreferredFocus={editing === 'email'}
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  keyboardType="email-address"
-                  placeholder="you@example.com"
-                  placeholderTextColor={colors.dim}
-                  onSubmitEditing={() => setEditing(null)}
-                />
-              </Field>
-            </Row>
-            <Row label="Password">
-              <Field
-                open={editing === 'password'}
-                onOpen={() => setEditing('password')}
-                testID="account-password"
-                label="Password"
-              >
-                <TextInput
-                  style={styles.input}
-                  value={password}
-                  onChangeText={setPassword}
-                  editable={editing === 'password'}
-                  focusable={editing === 'password'}
-                  pointerEvents={editing === 'password' ? 'auto' : 'none'}
-                  hasTVPreferredFocus={editing === 'password'}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  onSubmitEditing={() => setEditing(null)}
-                />
-              </Field>
-            </Row>
-            <View style={styles.row}>
-              <ActionButton
-                label={mode === 'signup' ? 'Create account' : 'Sign in'}
-                testID="account-submit"
-                onPress={submit}
-                style={styles.wide}
-              />
-              <ActionButton
-                label={mode === 'signup' ? 'I have an account' : 'New here? Create one'}
-                variant="ghost"
-                testID="account-mode"
-                onPress={() => setMode(mode === 'signup' ? 'signin' : 'signup')}
-                style={styles.wide}
-              />
-            </View>
-          </View>
-        )}
+        </View>
 
         {update && (
           <View style={styles.updateBlock}>
@@ -237,43 +127,6 @@ export function Account({ session, onSession, onImport, onBack, update, onUpdate
   );
 }
 
-/**
- * A field row: the D-pad target, not the input itself. OK opens the input for
- * typing (the row lights while open); back or DONE closes it and focus comes
- * back to the row, so the pad never gets trapped in a caret. The email row
- * takes the screen's initial focus — a restored task lands here with no view
- * focused at all, and arrows do nothing without an anchor.
- */
-function Field({
-  open,
-  onOpen,
-  testID,
-  label,
-  initialFocus,
-  children,
-}: {
-  open: boolean;
-  onOpen: () => void;
-  testID: string;
-  label: string;
-  initialFocus?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <Pressable
-      testID={testID}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ expanded: open }}
-      onPress={onOpen}
-      hasTVPreferredFocus={initialFocus}
-      style={({ focused }) => [styles.inputRow, (focused || open) && styles.inputRowOpen]}
-    >
-      {children}
-    </Pressable>
-  );
-}
-
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <View style={styles.fieldRow}>
@@ -302,20 +155,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: layout.gap },
   wide: { flex: 1 },
   value: mono(30, { color: colors.chalk }),
-  // the row owns the chrome: it is the focus target, and it lights when open
-  inputRow: {
-    borderWidth: layout.border,
-    borderColor: colors.slatHi,
-    borderRadius: layout.radius,
-    backgroundColor: colors.slat,
-  },
-  inputRowOpen: { borderColor: colors.sodium },
-  input: {
-    color: colors.chalk,
-    fontSize: s(30),
-    paddingHorizontal: s(16),
-    height: s(64),
-  },
 
   notice: mono(26, { em: 0.1, caps: true, color: colors.cold, marginTop: 'auto' }),
   label: mono(26, { em: 0.2, caps: true, color: colors.dim }),

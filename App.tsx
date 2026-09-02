@@ -32,7 +32,7 @@ import {
 } from '@expo-google-fonts/chivo-mono';
 
 import { buildQuery, fetchBatch, fetchCount, setUnauthorizedHandler, withShown } from './src/api/client';
-import { loadSession, saveSession, clearSession, type Session } from './src/api/auth';
+import { deviceLogin, deviceTag, loadSession, saveSession, clearSession, type Session } from './src/api/auth';
 import type { Filters, Title } from './src/api/types';
 import { THIS_YEAR } from './src/config/filters';
 import { Board } from './src/screens/Board';
@@ -79,15 +79,19 @@ export default function App() {
   const [filters, setFiltersState] = useState<Filters>(INITIAL);
   const [screen, setScreen] = useState<'board' | 'account' | 'import'>('board');
 
-  // the account. The token rides every title query: the server excludes this
-  // user's watched titles from the corpus when it sees a valid Bearer, so an
-  // authenticated roll cannot serve something they have already seen.
+  // the account is the device: the stored token is reused, and otherwise the
+  // ANDROID_ID signs in invisibly. The token rides every title query: the
+  // server excludes this user's watched titles from the corpus when it sees a
+  // valid Bearer, so an authenticated roll cannot serve something already seen.
   const [session, setSessionState] = useState<Session | null>(null);
   const sessionRef = useRef(session);
   sessionRef.current = session;
 
   useEffect(() => {
-    loadSession().then(setSessionState);
+    loadSession()
+      .then((s) => s ?? deviceLogin())
+      .then(setSessionState)
+      .catch(() => {}); // no account yet — the board reads the anonymous corpus
   }, []);
 
   const setSession = useCallback((s: Session | null) => {
@@ -97,13 +101,14 @@ export default function App() {
   }, []);
 
   // a token the server rejects means the stored session is dead: forget it and
-  // say so — the board falls back to the anonymous corpus, the notice points at
-  // the account screen. Fires once per dead token however many requests were
-  // in flight with it.
+  // sign in again as the same device — the board reads anonymous meanwhile.
+  // Fires once per dead token however many requests were in flight with it.
   useEffect(() => {
     setUnauthorizedHandler(() => {
       setSession(null);
-      setNotice('Session expired — sign in again');
+      deviceLogin()
+        .then(setSession)
+        .catch(() => setNotice('device sign-in failed — titles already watched may roll again'));
     });
     return () => setUnauthorizedHandler(null);
   }, [setSession]);
@@ -252,8 +257,7 @@ export default function App() {
     setReturned(true);
   }, []);
   const openImport = useCallback(() => {
-    // the import pushes into the signed-in account, so there is nothing to
-    // show without one — the account screen is the way in
+    // the import pushes into the device's watched list, so it waits for the token
     if (sessionRef.current) setScreen('import');
   }, []);
 
@@ -285,7 +289,6 @@ export default function App() {
       ) : screen === 'account' ? (
         <Account
           session={session}
-          onSession={setSession}
           onImport={openImport}
           onBack={toBoardFromScreen}
           update={update}
@@ -304,7 +307,7 @@ export default function App() {
           notice={notice}
           onRoll={roll}
           focusRoll={returned}
-          accountLabel={session ? session.email : 'Sign in'}
+          accountLabel={session ? deviceTag(session.deviceId) : 'device…'}
           onOpenAccount={openAccount}
           updateAvailable={update !== null}
           onOpenUpdate={openAccount}

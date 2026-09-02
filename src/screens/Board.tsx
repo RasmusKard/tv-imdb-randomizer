@@ -145,9 +145,7 @@ export function Board({ filters, setFilters, count, picking, pending, corpus, no
               onPress={onOpenAccount}
               style={({ focused }) => [styles.accountChip, focused && styles.accountChipFocused]}
             >
-              <Text style={[styles.accountLabel, accountLabel !== 'Sign in' && styles.accountLabelOn]}>
-                {accountLabel === 'Sign in' ? 'Sign in' : `● ${accountLabel}`}
-              </Text>
+              <Text style={[styles.accountLabel, !!accountLabel && styles.accountLabelOn]}>● {accountLabel}</Text>
             </Pressable>
           </View>
         </View>

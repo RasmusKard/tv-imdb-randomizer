@@ -67,7 +67,7 @@ export function Import({ session, onBack, onImported }: Props) {
         } catch (e) {
           const message = (e as { message?: string }).message ?? 'push failed';
           addLog(`${source}: ${message}`, 'err');
-          return { ok: false, error: message === 'watched push failed: 401' ? 'signed out or expired — sign in again' : message };
+          return { ok: false, error: message === 'watched push failed: 401' ? 'device session expired — try again' : message };
         }
       };
       const next = chain.current.then(run, run);

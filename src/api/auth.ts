@@ -1,32 +1,59 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Application from 'expo-application';
 
 import { BASE } from './base';
 
 /**
- * The account, and the watched list. The server is PostgREST: register and
- * login are RPCs that hand back a JWT, and the watched table is a plain
- * resource keyed (user_id, tconst) — the user_id comes from the token, never
- * from the client. See the API's "Accounts, and the watched list" section.
+ * The account, and the watched list. The account is the device itself: the
+ * ANDROID_ID is sent to `POST /rpc/device_login`, which finds or creates the
+ * user and hands back the same JWT login used to. The server is PostgREST, and
+ * the watched table is a plain resource keyed (user_id, tconst) — the user_id
+ * comes from the token, never from the client. See the API's
+ * "Accounts, and the watched list" section.
  */
 
 const TOKEN_KEY = 'whatwatch.token';
 const EMAIL_KEY = 'whatwatch.email';
+const DEVICE_ID_KEY = 'whatwatch.deviceId';
 
-export type Session = { token: string; email: string };
+export type Session = { token: string; deviceId: string };
+
+/** A short tag for the account chip: the ANDROID_ID's last four hex digits. */
+export function deviceTag(deviceId: string): string {
+  return `device ${deviceId.slice(-4)}`;
+}
+
+/**
+ * The device UID. ANDROID_ID is unique per app-signing key, user and device,
+ * and survives reinstalls and updates; the persisted random fallback only
+ * exists for the emulator edge where the setting reads empty, so the account
+ * still binds to something stable.
+ */
+export async function getDeviceId(): Promise<string> {
+  const androidId = Application.getAndroidId();
+  if (androidId) return androidId;
+  let stored = await AsyncStorage.getItem(DEVICE_ID_KEY);
+  if (!stored) {
+    stored = Array.from({ length: 16 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+    await AsyncStorage.setItem(DEVICE_ID_KEY, stored);
+  }
+  return stored;
+}
 
 export async function loadSession(): Promise<Session | null> {
-  const [token, email] = await Promise.all([AsyncStorage.getItem(TOKEN_KEY), AsyncStorage.getItem(EMAIL_KEY)]);
-  return token && email ? { token, email } : null;
+  // accounts used to carry an email; sweep the dead key out of old installs
+  await AsyncStorage.removeItem(EMAIL_KEY);
+  const token = await AsyncStorage.getItem(TOKEN_KEY);
+  if (!token) return null;
+  return { token, deviceId: await getDeviceId() };
 }
 
 export async function saveSession(s: Session): Promise<void> {
   await AsyncStorage.setItem(TOKEN_KEY, s.token);
-  await AsyncStorage.setItem(EMAIL_KEY, s.email);
 }
 
 export async function clearSession(): Promise<void> {
   await AsyncStorage.removeItem(TOKEN_KEY);
-  await AsyncStorage.removeItem(EMAIL_KEY);
 }
 
 /**
@@ -39,42 +66,31 @@ export function authHeaders(token: string | undefined): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-type RpcError = { status: number; message: string };
-
-async function rpc(name: 'register' | 'login', email: string, password: string): Promise<Session> {
+/**
+ * Sign in as the device. Idempotent on the server: the first call creates the
+ * account, every later one returns the same user. The RPC returns the JWT as a
+ * bare string; an error comes back as a JSON object with `message`. Accept the
+ * documented { token } shape too.
+ */
+export async function deviceLogin(): Promise<Session> {
+  const deviceId = await getDeviceId();
   let res: Response;
   try {
-    res = await fetch(`${BASE}/rpc/${name}`, {
+    res = await fetch(`${BASE}/rpc/device_login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ p_device_id: deviceId }),
     });
   } catch {
-    throw { status: 0, message: 'Could not reach the server' } satisfies RpcError;
+    throw new Error('Could not reach the server');
   }
-  // the RPC returns the JWT as a bare string; an error comes back as a JSON
-  // object with `message`. Accept the documented { token } shape too.
   const body = (await res.json().catch(() => null)) as string | { token?: string; message?: string } | null;
   const token = typeof body === 'string' ? body : body?.token;
   if (!res.ok || !token) {
-    const message = (typeof body === 'object' && body?.message) || `sign-in failed (${res.status})`;
-    throw {
-      status: res.status,
-      message: /duplicate|exists|unique/i.test(message)
-        ? 'That email already has an account — sign in instead'
-        : message,
-    } satisfies RpcError;
+    const message = (typeof body === 'object' && body?.message) || `device sign-in failed (${res.status})`;
+    throw new Error(message);
   }
-  return { token, email };
-}
-
-/** Register is login-plus-signup: one call creates the account and returns the token. */
-export function register(email: string, password: string): Promise<Session> {
-  return rpc('register', email, password);
-}
-
-export function login(email: string, password: string): Promise<Session> {
-  return rpc('login', email, password);
+  return { token, deviceId };
 }
 
 /** The signed-in user's watched tconsts. An expired token reads as an empty list. */
