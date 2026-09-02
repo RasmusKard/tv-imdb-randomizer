@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import type { Filters, GenreState, Title } from '../api/types';
@@ -29,7 +29,8 @@ const THREAD_STEP_MS = 240;
  * gate light under the title. The arrival is
  * a three-step leader countdown in hard cuts, skipped whole under
  * reduce-motion — and Pick another is pre-focused so the lazy path is a single
- * button, pressed repeatedly. The leader tape along the bottom keeps the
+ * button, pressed repeatedly. The one-sheet on the right and the plot carry
+ * the TMDB credit under them. The leader tape along the bottom keeps the
  * filters present without putting them back on screen, and doubles as the way
  * back to the board.
  */
@@ -37,6 +38,8 @@ export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Prop
   const isSeries = kindOf(title.titleType) === 'series';
   const kindLabel = isSeries ? 'Series' : 'Movie';
   const reduceMotion = useReduceMotion();
+  // captured once per title, so the plex open below cannot race a "Pick another"
+  const plexUrl = title.plexUrl;
 
   // the thread-up: 3 → 2 → 1 → the feature. Zero means the print is running.
   const [thread, setThread] = useState(3);
@@ -49,6 +52,11 @@ export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Prop
     const t = setTimeout(() => setThread(thread - 1), THREAD_STEP_MS);
     return () => clearTimeout(t);
   }, [thread, reduceMotion]);
+
+  // the one-sheet can fail to load (dead CDN edge, TV offline at that moment);
+  // the reel takes the frame back, and each new title starts with a clean slate
+  const [artFailed, setArtFailed] = useState(false);
+  useEffect(() => setArtFailed(false), [title.tconst]);
 
   const meta = [
     String(title.startYear),
@@ -120,17 +128,46 @@ export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Prop
                 onPress={() => Linking.openURL(`https://www.imdb.com/title/${title.tconst}/`).catch(() => {})}
                 style={styles.action}
               />
+              {plexUrl && (
+                <ActionButton
+                  label="Open in Plex"
+                  variant="ghost"
+                  testID={testId.plex}
+                  // the server only hands out a link it has actually matched on
+                  // Plex; absent means absent, so there is no button at all
+                  onPress={() => Linking.openURL(plexUrl).catch(() => {})}
+                  style={styles.action}
+                />
+              )}
             </View>
           </View>
 
-          {/* Stands in for the TMDB artwork, which has nothing to load yet. */}
-          <View style={styles.poster}>
-            <Text style={styles.posterKind}>{kindLabel}</Text>
-            <Reel />
-            <View style={styles.posterFoot}>
-              <Text style={styles.posterScore}>{title.averageRating.toFixed(1)} ★</Text>
-              <Text style={styles.posterId}>{title.tconst}</Text>
+          {/* The one-sheet from TMDB; the reel stands back in when it is
+              missing or would not load. */}
+          <View style={styles.posterCol}>
+            <View style={styles.poster}>
+              <Text style={styles.posterKind}>{kindLabel}</Text>
+              {title.posterUrl && !artFailed ? (
+                <Image
+                  source={{ uri: title.posterUrl }}
+                  style={styles.posterArt}
+                  resizeMode="cover"
+                  accessibilityLabel={`${title.primaryTitle} poster`}
+                  onError={() => setArtFailed(true)}
+                />
+              ) : (
+                <Reel />
+              )}
+              <View style={styles.posterFoot}>
+                <Text style={styles.posterScore}>{title.averageRating.toFixed(1)} ★</Text>
+                <Text style={styles.posterId}>{title.tconst}</Text>
+              </View>
             </View>
+            {/* the price of the artwork and the plot: TMDB requires
+                attribution wherever its data is shown */}
+            {(title.plot || (title.posterUrl && !artFailed)) && (
+              <Text style={styles.credit}>art & plot — TMDB</Text>
+            )}
           </View>
         </View>
 
@@ -195,7 +232,7 @@ function Sprockets({ top }: { top?: boolean }) {
   );
 }
 
-/** The reel standing in for the one-sheet, until TMDB artwork lands. */
+/** The reel standing in whenever the one-sheet is missing. */
 function Reel() {
   return (
     <View style={styles.reel}>
@@ -306,10 +343,11 @@ const styles = StyleSheet.create({
   plot: mono(26, { lineHeight: 42, color: colors.dim, marginTop: s(26), maxWidth: layout.span(4) }),
 
   actions: { marginTop: 'auto', flexDirection: 'row', gap: s(28), paddingBottom: s(20) },
-  action: { width: layout.span(2) },
+  // three actions share the five columns; a fixed span would overflow at the third
+  action: { flex: 1 },
 
+  posterCol: { width: layout.span(2) },
   poster: {
-    width: layout.span(2),
     aspectRatio: 2 / 3,
     padding: s(32),
     borderRadius: layout.radius,
@@ -319,6 +357,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   posterKind: mono(22, { em: 0.24, caps: true, color: colors.dim }),
+  posterArt: { flex: 1, width: '100%', borderRadius: s(2), backgroundColor: colors.boardLo },
   reel: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   reelRim: {
     width: s(190),
@@ -360,6 +399,7 @@ const styles = StyleSheet.create({
   },
   posterScore: monoBold(24, { color: colors.sodium }),
   posterId: mono(24, { color: colors.dim }),
+  credit: mono(15, { em: 0.1, caps: true, color: colors.dim, marginTop: s(10), textAlign: 'center' }),
 
   // leader tape: one step above the unlit ground, amber ink for the count
   receipt: {

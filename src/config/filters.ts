@@ -107,6 +107,7 @@ export const testId = {
   roll: 'btn-roll',
   rollAgain: 'btn-roll-again',
   imdb: 'btn-imdb',
+  plex: 'btn-plex',
   receipt: 'btn-receipt',
 };
 

@@ -143,5 +143,13 @@ export async function fetchBatch(
     rows = rows.concat(await get(`rnd=lte.${r}&order=rnd&limit=${size - rows.length}`));
   }
 
-  return shuffle(rows).map((row) => ({ ...row, plot: null, posterUrl: null }));
+  // the enrichment columns ride along now that the server serves them; a
+  // missing value arrives as undefined (JSON null no, absent column yes), so
+  // each is normalized to the null the Title type promises
+  return shuffle(rows).map((row) => ({
+    ...row,
+    plot: row.plot ?? null,
+    posterUrl: row.posterUrl ?? null,
+    plexUrl: row.plexUrl ?? null,
+  }));
 }

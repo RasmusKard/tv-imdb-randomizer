@@ -10,7 +10,8 @@
  * STORY: the viewer tunes filters, presses pick, a leader countdown clears,
  * and tonight's title stands in gate light; leader tape remembers the filters.
  * FIRST VIEWPORT: verdict — sprockets frame top and bottom, meta rules, one giant silver title in warm gate glow,
- * tags, plot, Pick another + IMDb, reel poster right, leader-tape receipt below.
+ * tags, plot, Pick another + IMDb + Plex (when matched), poster right (reel stands in when absent),
+ * leader-tape receipt below.
  * FORM: The Projection Booth at Showtime, candidate 5 of 7, seed 15068fbf.
  * FINISH: unreviewed and undocumented is unfinished; this build ends with the
  * finish review, the verdict, DESIGN.md, and every shipping raster carrying

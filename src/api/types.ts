@@ -37,7 +37,9 @@ export type Title = {
   numVotes: number;
   /** The corpus has 27 genres, six more than the board's 21 — render whatever it sends. */
   genres: string[];
-  /** TMDB enrichment — null until that is wired */
+  /** TMDB enrichment — null when the title is absent from TMDB */
   plot: string | null;
   posterUrl: string | null;
+  /** The Plex deep link, null when the title is not on Plex — no link, no button. */
+  plexUrl: string | null;
 };
