@@ -79,7 +79,7 @@ export const AXES: Record<RangeKey, Axis> = {
     label: 'Votes',
     min: 0,
     max: VOTES_MAX,
-    step: 25_000,
+    step: 1000,
     fmt: fmtVotes,
     pos: (v) => v / VOTES_MAX,
     bands: [
