@@ -112,6 +112,7 @@ export const testId = {
   presetRename: (id: string) => `preset-${id}-rename`,
   presetDelete: (id: string) => `preset-${id}-delete`,
   rollAgain: 'btn-roll-again',
+  watched: 'btn-watched',
   imdb: 'btn-imdb',
   plex: 'btn-plex',
   receipt: 'btn-receipt',

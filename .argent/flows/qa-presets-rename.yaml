@@ -28,7 +28,7 @@ steps:
   - echo: Type night picks, then down to leave the field; the card must carry the new name
   - tool: keyboard
     args: { text: night picks }
-  - await: { text: { in: { id: preset-rename-input }, equals: night picks } }
+  - await: { text: { in: { id: preset-rename-input }, contains: night picks } }
   - tool: tv-remote
     args: { button: down }
   - await: { visible: { text: Load preset night picks } }

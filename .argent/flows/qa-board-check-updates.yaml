@@ -1,0 +1,14 @@
+steps:
+  - echo: The manual update check lives on the board header now; with no manifest configured the answer must read up to date on the board's notice line
+  - launch: com.delfiapp.tvimdbrandomizer
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - echo: Up 11 to the header, three rights onto the check chip (past presets and import)
+  - tool: tv-remote
+    args: { button: [up, up, up, up, up, up, up, up, up, up, up] }
+    delayMs: 700
+  - tool: tv-remote
+    args: { button: [right, right, right] }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { text: { in: { id: board-notice }, equals: up to date } }

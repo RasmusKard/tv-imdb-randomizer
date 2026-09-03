@@ -22,6 +22,8 @@ type Props = {
    *  where the press happened, in the dock's own warning voice. */
   notice?: string | null;
   onRollAgain: () => void;
+  /** Puts this title on the account's watched list: it never rolls again. */
+  onWatched: (tconst: string) => Promise<void>;
   onBack: () => void;
 };
 
@@ -40,9 +42,26 @@ const THREAD_STEP_MS = 240;
  * filters present without putting them back on screen, and doubles as the way
  * back to the board.
  */
-export function Verdict({ title, filters, remaining, notice, onRollAgain, onBack }: Props) {
+export function Verdict({ title, filters, remaining, notice, onRollAgain, onWatched, onBack }: Props) {
   const isSeries = kindOf(title.titleType) === 'series';
   const kindLabel = isSeries ? 'Series' : 'Movie';
+
+  // the watched button's three states: offered, in flight, done — done sticks
+  // for as long as this verdict stands (the push is idempotent, but the label
+  // answering twice would read as doubt)
+  const [watchedState, setWatchedState] = useState<'idle' | 'busy' | 'done'>('idle');
+  useEffect(() => setWatchedState('idle'), [title.tconst]);
+  const markWatched = async () => {
+    if (watchedState !== 'idle') return;
+    setWatchedState('busy');
+    try {
+      await onWatched(title.tconst);
+      setWatchedState('done');
+    } catch {
+      setWatchedState('idle');
+      // the notice line already says what went wrong (App owns it)
+    }
+  };
   const reduceMotion = useReduceMotion();
   // the receipt's UP lands here, so up-then-down from "Pick another" is identity
   const [pickNode, setPickNode] = useState<View | null>(null);
@@ -199,6 +218,14 @@ export function Verdict({ title, filters, remaining, notice, onRollAgain, onBack
                 onPress={onRollAgain}
                 hasTVPreferredFocus
                 ref={setPickNode}
+                style={styles.action}
+              />
+              <ActionButton
+                label={watchedState === 'done' ? 'On your list' : watchedState === 'busy' ? 'Adding…' : 'Watched it'}
+                variant="ghost"
+                testID={testId.watched}
+                disabled={watchedState !== 'idle'}
+                onPress={markWatched}
                 style={styles.action}
               />
               {plexUrl && (

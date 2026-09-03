@@ -9,6 +9,9 @@ import { Chip, type ChipState } from '../components/Chip';
 import { GridRow } from '../components/GridRow';
 import { RangeSlider, type Editing } from '../components/RangeSlider';
 import { COLS, colors, displayHeavy, layout, mono, s, screen, text } from '../theme';
+import { UpdateCard } from '../components/UpdateCard';
+import type { UpdateInfo } from '../update/compare';
+import { checkForUpdate } from '../update/checker';
 
 type Props = {
   filters: Filters;
@@ -23,15 +26,20 @@ type Props = {
   /** True when arriving back from a verdict, so the pick button takes focus on mount. */
   focusRoll?: boolean;
   onOpenAccount: () => void;
-  /** An update was found; the banner is a pointer, the card lives on the account screen. */
-  updateAvailable: boolean;
-  onOpenUpdate: () => void;
+  /** An update the app has found; the header lamp says so, the card below the board installs it. */
+  update: UpdateInfo | null;
+  /** Runs the manual check: finds (or fails) and sets the notice line. */
+  onCheckUpdates: () => Promise<void>;
+  /** True while the manual check is in flight, so the chip can say so. */
+  checking: boolean;
+  /** The board's one notice line — the update check answers here. */
+  notice: string | null;
   /** Back to the default filters. Never touches the session's shown list. */
   onReset: () => void;
   onOpenPresets: () => void;
 };
 
-export function Board({ filters, setFilters, count, picking, pending, onRoll, focusRoll, onOpenAccount, updateAvailable, onOpenUpdate, onReset, onOpenPresets }: Props) {
+export function Board({ filters, setFilters, count, picking, pending, onRoll, focusRoll, onOpenAccount, update, onCheckUpdates, checking, notice, onReset, onOpenPresets }: Props) {
   // Android's FocusFinder scores by centre distance, so a full-width slider is
   // unreachable from a left-hand chip however close it is. Every row that sits
   // next to a slider therefore names it explicitly. See GridRow.
@@ -135,17 +143,13 @@ export function Board({ filters, setFilters, count, picking, pending, onRoll, fo
                 <T style={[styles.accountName, focused && styles.accountNameFocused]}>reset filters</T>
               )}
             </Pressable>
-            {updateAvailable && (
-              <Pressable
-                testID="board-update"
-                accessibilityRole="button"
-                accessibilityLabel="Update available"
-                onPress={onOpenUpdate}
-                style={({ focused }) => [styles.accountChip, styles.updateChip, focused && styles.accountChipFocused]}
-              >
+            {update && (
+              // the lamp, not a door: pressing would go nowhere the card below
+              // is not already — it says the card is worth reading
+              <View style={[styles.accountChip, styles.updateChip]} accessibilityLabel="Update available">
                 <View style={styles.updateDot} />
                 <T style={styles.updateLabel}>update ready</T>
-              </Pressable>
+              </View>
             )}
             {/* the presets door: same chip grammar as the import door beside
                 it — the board itself gains nothing else */}
@@ -177,6 +181,22 @@ export function Board({ filters, setFilters, count, picking, pending, onRoll, fo
                 <>
                   <T style={[styles.accountName, focused && styles.accountNameFocused]}>Import from IMDb</T>
                 </>
+              )}
+            </Pressable>
+            {/* the manual check lives here now: its answer is the notice line
+                below and, when one is found, the install card above the dock */}
+            <Pressable
+              testID="board-check-updates"
+              accessibilityRole="button"
+              accessibilityLabel={checking ? 'Checking for updates' : 'Check for updates'}
+              onPress={onCheckUpdates}
+              nextFocusDown={typeFirst}
+              style={({ focused }) => [styles.accountChip, focused && styles.accountChipFocused]}
+            >
+              {({ focused }) => (
+                <T style={[styles.accountName, focused && styles.accountNameFocused]}>
+                  {checking ? 'checking…' : 'check for updates'}
+                </T>
               )}
             </Pressable>
           </View>
@@ -275,6 +295,21 @@ export function Board({ filters, setFilters, count, picking, pending, onRoll, fo
             ))}
           </Block>
         </View>
+
+        {/* the update, offered where the rest of the app lives — no detour to
+            another screen for the one action that changes the app itself */}
+        {update && (
+          <View style={styles.updateRow}>
+            <UpdateCard info={update} testID="board-update-card" />
+          </View>
+        )}
+        {/* the board's one notice line: the update check answers here, and so
+            do the errors a roll can raise (previously silent on this screen) */}
+        {notice ? (
+          <T style={styles.boardNotice} numberOfLines={1} testID="board-notice">
+            {notice}
+          </T>
+        ) : null}
 
         <Dock
           count={count}
@@ -536,6 +571,8 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.slatHi,
   },
+  updateRow: { paddingTop: s(14) },
+  boardNotice: { ...text.notice, paddingTop: s(10) },
   roll: { width: layout.contentWidth },
   label: text.label,
   // large-text 3:1 holds at this alpha on the board ground — checked, not guessed

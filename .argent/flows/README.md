@@ -1,6 +1,6 @@
 # what.watch regression flows
 
-Seventeen Argent flows covering the app functionality as of the current UI
+Eighteen Argent flows covering the app functionality as of the current UI
 snapshot (Android TV, D-pad driven; touch directives do not exist on this
 platform, so navigation is recorded `tool: tv-remote` steps gated by `await:`
 identity/readiness checks).
@@ -14,8 +14,9 @@ identity/readiness checks).
 | qa-board-kind-toggle | Movies turned off; a roll from the TV-shows-only board is proven by the verdict receipt (`Filters: TV shows, …`) |
 | qa-roll-verdict-roundtrip | Roll → verdict identity (title, Pick another) → receipt returns to the board |
 | qa-roll-again | `Pick another` from a verdict produces a fresh verdict |
-| qa-account-screen | Account summary via the header chip; back returns to the board |
-| qa-account-check-updates | Manual update check answers `up to date` (build has no update manifest) |
+| qa-verdict-mark-watched | `Watched it` on a verdict pushes the title to the watched list (`On your list` + notice), stays inert after, and a second roll lands on a fresh title |
+| qa-account-screen | Watched-list screen via the header chip (device summary, watched count, import door); back returns to the board |
+| qa-board-check-updates | Manual update check on the board header answers `up to date` on the board's notice line (build has no update manifest) |
 | qa-import-screen | Import screen (the ATV emulator has no LAN address, so the QR is fatally disabled and the header says so); back returns to the board |
 | qa-presets-keep-load | Keep the default board, wander to Great, load the preset back; the board returns to its kept defaults (repeat-safe: the duplicate-keep guard holds the list at one card) |
 | qa-presets-keep-twice | Keeping the same board twice answers `already kept` and stacks no duplicate; ends deleted |

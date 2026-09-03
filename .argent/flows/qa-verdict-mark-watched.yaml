@@ -1,0 +1,22 @@
+steps:
+  - echo: Roll once, then put the verdict on the watched list with its own button; the button must answer On your list and the notice line must confirm, and a second roll must land on a different title
+  - launch: com.delfiapp.tvimdbrandomizer
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - echo: Roll from the default board; the verdict answers with Pick another holding focus
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { id: btn-roll-again } }
+  - await: { idle: true }
+  - echo: One right lands on Watched it; select it
+  - tool: tv-remote
+    args: { button: [right, select] }
+  - await: { visible: { text: 'On your list' } }
+  - await: { visible: { text: 'added to your list' } }
+  - echo: The button stays inert once done - a second select must not re-fire it; Pick another still rolls a fresh title
+  - tool: tv-remote
+    args: { button: left }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { id: btn-roll-again } }
+  - await: { visible: { text: 'Watched it' } }

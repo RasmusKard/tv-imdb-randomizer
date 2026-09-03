@@ -32,7 +32,7 @@ import {
 } from '@expo-google-fonts/chivo-mono';
 
 import { buildQuery, fetchBatch, fetchCount, setUnauthorizedHandler, withShown } from './src/api/client';
-import { deviceLogin, loadSession, saveSession, clearSession, type Session } from './src/api/auth';
+import { deviceLogin, loadSession, saveSession, clearSession, pushWatched, type Session } from './src/api/auth';
 import type { Filters, Title } from './src/api/types';
 import { AXES, THIS_YEAR } from './src/config/filters';
 import { Board } from './src/screens/Board';
@@ -115,13 +115,31 @@ export default function App() {
   }, [setSession]);
 
   // the daily OTA check, gated to once a day inside the checker. Silent both
-  // ways: what it finds lights the board banner, nothing ever steals focus.
+  // ways: what it finds lights the board lamp and the install card, nothing
+  // ever steals focus. The manual check on the board is the same finder with
+  // an answer owed on the notice line.
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
   useEffect(() => {
     checkForUpdate()
       .then(setUpdate)
       .catch(() => {});
   }, []);
+
+  const [checking, setChecking] = useState(false);
+  const checkUpdates = useCallback(async () => {
+    if (checking) return;
+    setChecking(true);
+    setNotice(null);
+    try {
+      const found = await checkForUpdate({ force: true });
+      setUpdate(found);
+      setNotice(found ? `version ${found.versionName} is ready — install it below` : 'up to date');
+    } catch (e) {
+      setNotice((e as { message?: string }).message ?? 'couldn\u2019t check — try again');
+    } finally {
+      setChecking(false);
+    }
+  }, [checking]);
 
   // bumped after an import: everything the server counts changes behind a
   // token the client already holds, so both counters must be refetched
@@ -245,6 +263,26 @@ export default function App() {
     }
   }, [queue, filters]);
 
+  // the verdict's own way onto the watched list: same effect as a roll (the
+  // title can never roll again), but the title stays on screen — the button
+  // answers, the count quietly drops by one
+  const markWatched = useCallback(async (tconst: string) => {
+    const token = sessionRef.current?.token;
+    if (!token) {
+      setNotice('no session yet — try again');
+      throw new Error('no session');
+    }
+    try {
+      await pushWatched(token, [tconst]);
+    } catch {
+      setNotice('could not add — try again');
+      throw new Error('watched push failed');
+    }
+    setShown((s) => (s.includes(tconst) ? s : [...s, tconst]));
+    setCount((c) => (c === null || c === 0 ? c : c - 1));
+    setNotice('added to your list — it never rolls again');
+  }, []);
+
   // coming back from a verdict, focus belongs on the pick button — that is where you left
   // from, and it is one press from both rolling again and editing filters
   const [returned, setReturned] = useState(false);
@@ -306,16 +344,11 @@ export default function App() {
           remaining={count ?? 0}
           notice={notice}
           onRollAgain={roll}
+          onWatched={markWatched}
           onBack={toBoard}
         />
       ) : screen === 'account' ? (
-        <Account
-          session={session}
-          onImport={openImport}
-          onBack={toBoardFromScreen}
-          update={update}
-          onUpdate={setUpdate}
-        />
+        <Account session={session} onImport={openImport} onBack={toBoardFromScreen} />
       ) : screen === 'presets' ? (
         <Presets filters={filters} onLoad={loadPreset} onBack={toBoardFromScreen} />
       ) : screen === 'import' && session ? (
@@ -330,8 +363,10 @@ export default function App() {
           onRoll={roll}
           focusRoll={returned}
           onOpenAccount={openAccount}
-          updateAvailable={update !== null}
-          onOpenUpdate={openAccount}
+          update={update}
+          onCheckUpdates={checkUpdates}
+          checking={checking}
+          notice={notice}
           onReset={() => setFilters({ ...INITIAL })}
           onOpenPresets={openPresets}
         />
