@@ -37,3 +37,5 @@ expo-env.d.ts
 
 # working screenshots and recordings from UI passes
 artifacts/
+# icon generator scratch dir
+.icon-build/

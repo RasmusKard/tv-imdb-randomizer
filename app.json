@@ -1,5 +1,6 @@
 {
   "expo": {
+    "icon": "./assets/images/icon-1024x1024.png",
     "plugins": [
       "./plugins/esc-to-back",
       [
