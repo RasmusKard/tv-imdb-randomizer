@@ -2,23 +2,29 @@
 
 # what.watch
 
-A random-episode/night's-pick shuffler for Android TV. It filters a corpus of 534 836
-IMDb titles by type, rating, year, votes and genres on a D-pad-first board, then rolls
-one title at a time — never repeating within a session — onto a verdict screen.
+Randomized movie/tv show picks based on your defined filters.
+Open with deeplink straight to Plex.
 
-Built with Expo SDK 57 on the React Native TV fork (`react-native-tvos`), targeting
-Android TV; also buildable for Apple TV, mobile and web.
+## Install on the TV
 
-## The API dependency
+The easiest way is [Downloader by AFTVNews](https://aftvnews.com/downloader/)
+(free on the Play Store):
 
-The app is a client. It talks to a PostgREST-style **what-watch API** (`/title_full`)
-that serves the IMDb corpus — counts, filtered batches, random windows. Point it
-at the server with `EXPO_PUBLIC_API_URL` in `.env` (copy `.env.example`; `10.0.2.2`
-reaches the host from an emulator, a LAN address reaches it from a physical device).
+1. Install Downloader on the TV and open it.
+2. Enter code `1397655` — the latest APK downloads.
+3. Android TV will ask to allow Downloader to install unknown apps — allow it.
+4. Install, open what.watch. Done.
 
-Plots and posters are the server's job, and until TMDB support lands on
-`title_full` the verdict keeps its placeholder panel; "Open in Plex" rides the
-same server-side lookup pattern.
+After that the app updates itself: it checks for new releases once a day and
+installs them with one confirmation on the Account screen.
+
+No Downloader? Grab `app-tv-latest.apk` from the
+[latest release](https://github.com/RasmusKard/tv-imdb-randomizer/releases/latest)
+and sideload it however you like (`adb install -r` works too).
+
+## The API
+
+The app is a client, it consumes an API with movie/show data.
 
 ## Run it
 
