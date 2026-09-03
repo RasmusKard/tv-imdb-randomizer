@@ -22,7 +22,7 @@ export type Filters = {
   rating: [number, number];
   /** 1894–current year, step 1 */
   year: [number, number];
-  /** 0–1_000_000, log axis */
+  /** 0–AXES.votes.max (edge = unbounded), linear axis */
   votes: [number, number];
   genres: Partial<Record<Genre, GenreState>>;
 };

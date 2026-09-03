@@ -32,10 +32,10 @@ export type Axis = {
   bands: Band[];
 };
 
-const VOTES_MAX = 1_000_000;
+const VOTES_MAX = 300_000;
 
 const fmtVotes = (v: number) =>
-  v >= VOTES_MAX ? '1M+'
+  v >= VOTES_MAX ? `${Math.round(VOTES_MAX / 1000)}K+`
   : v >= 100_000 ? `${Math.round(v / 1000)}K`
   : v >= 1000 ? `${(v / 1000).toFixed(v < 10_000 ? 1 : 0)}K`
   : String(Math.round(v));
@@ -83,7 +83,7 @@ export const AXES: Record<RangeKey, Axis> = {
     fmt: fmtVotes,
     pos: (v) => v / VOTES_MAX,
     bands: [
-      { name: 'Any', sub: '0–1M', lo: 0, hi: VOTES_MAX },
+      { name: 'Any', sub: `0–${Math.round(VOTES_MAX / 1000)}K`, lo: 0, hi: VOTES_MAX },
       { name: 'Obscure', sub: '≤1K', lo: 0, hi: 1000 },
       { name: 'Deep cut', sub: '1K–5K', lo: 1000, hi: 5000 },
       { name: 'Cult', sub: '5K–25K', lo: 5000, hi: 25_000 },

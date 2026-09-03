@@ -44,7 +44,7 @@ const baseFilters = (over: Partial<Filters> = {}): Filters => ({
   kinds: ['movie'],
   rating: [0, 10],
   year: [1894, THIS_YEAR],
-  votes: [0, 1_000_000],
+  votes: [0, AXES.votes.max],
   genres: {},
   ...over,
 });
@@ -81,14 +81,14 @@ check('neither handle leaves the axis', () => {
 check('one tap is exactly one notch', () => {
   assert.deepEqual(nudge(AXES.rating, [5, 10], 0, 1), [5.1, 10]);
   assert.deepEqual(nudge(AXES.year, [1965, THIS_YEAR], 0, -1), [1964, THIS_YEAR]);
-  assert.deepEqual(nudge(AXES.votes, [0, 1_000_000], 0, 1), [25_000, 1_000_000]);
+  assert.deepEqual(nudge(AXES.votes, [0, AXES.votes.max], 0, 1), [AXES.votes.step, AXES.votes.max]);
 });
 
 check('the votes axis is linear, not log', () => {
   const ax = AXES.votes;
   // a linear axis puts 10% of the value at 10% of the track, not bunched near zero
-  assert.ok(Math.abs(ax.pos(100_000) - 0.1) < 1e-9, `100K sits at ${ax.pos(100_000)}`);
-  assert.ok(Math.abs(ax.pos(500_000) - 0.5) < 1e-9, `500K sits at ${ax.pos(500_000)}`);
+  assert.ok(Math.abs(ax.pos(ax.max / 10) - 0.1) < 1e-9, `${ax.max / 10} sits at ${ax.pos(ax.max / 10)}`);
+  assert.ok(Math.abs(ax.pos(ax.max / 2) - 0.5) < 1e-9, `${ax.max / 2} sits at ${ax.pos(ax.max / 2)}`);
 });
 
 console.log('bands');
@@ -127,7 +127,7 @@ check('each axis has exactly one whole-axis band', () => {
 console.log('query');
 
 check('a bound on the edge of its axis is omitted', () => {
-  const votes = buildQuery(baseFilters({ votes: [5000, 1_000_000] }));
+  const votes = buildQuery(baseFilters({ votes: [5000, AXES.votes.max] }));
   assert.ok(votes.includes('numVotes=gte.5000'), votes);
   assert.ok(!votes.includes('numVotes=lte'), votes);
 

@@ -34,7 +34,7 @@ import {
 import { buildQuery, fetchBatch, fetchCount, setUnauthorizedHandler, withShown } from './src/api/client';
 import { deviceLogin, loadSession, saveSession, clearSession, type Session } from './src/api/auth';
 import type { Filters, Title } from './src/api/types';
-import { THIS_YEAR } from './src/config/filters';
+import { AXES, THIS_YEAR } from './src/config/filters';
 import { Board } from './src/screens/Board';
 import { Verdict } from './src/screens/Verdict';
 import { Account } from './src/screens/Account';
@@ -55,7 +55,7 @@ const INITIAL: Filters = {
   kinds: ['movie', 'series'],
   rating: [5, 10],
   year: [1965, THIS_YEAR],
-  votes: [5000, 1_000_000],
+  votes: [5000, AXES.votes.max],
   genres: {},
 };
 
