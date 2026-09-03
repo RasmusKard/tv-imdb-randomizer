@@ -23,10 +23,18 @@ const handleMode = (side: 0 | 1, editing: Editing, focused: boolean): HandleMode
 const ACTION_DOWN = 0;
 const ACTION_UP = 1;
 
-/** Dead zone after the first step, so a tap stays exactly one notch. */
-const REPEAT_DELAY_MS = 380;
-/** Constant repeat interval once the dead zone has passed — no acceleration. */
-const REPEAT_TICK_MS = 100;
+/**
+ * D-pad left/right, including the OS repeat stream. On this stack the initial
+ * ACTION_DOWN never reaches useTVEventHandler (the focus engine consumes it),
+ * so a held key surfaces as repeated `longRight`/`longLeft` events — one per
+ * OS repeat — followed by the UP. adb presses arrive as UP alone.
+ */
+const dirOf = (eventType: string): -1 | 1 | 0 =>
+  eventType === 'right' || eventType === 'longRight'
+    ? 1
+    : eventType === 'left' || eventType === 'longLeft'
+      ? -1
+      : 0;
 
 type Props = {
   axis: Axis;
@@ -106,24 +114,21 @@ export function RangeSlider({
   onEditingChange,
   hasTVPreferredFocus,
 }: Props) {
-  // the key handler and the repeat timer both fire outside React's render, so
-  // they read the live value and edit state from refs rather than stale closures.
-  // While armed, this ref is the source of truth, advanced synchronously inside
-  // move() itself — not resynced from the `value` prop until editing ends. A
-  // repeat tick fires every REPEAT_TICK_MS; a round trip through onChange ->
-  // App state -> re-render can take longer than that under load, and syncing
-  // from the (by-then-stale) prop on every render made each tick nudge from
-  // the same starting point as the last, so holding moved once and stalled.
+  // the key handler fires outside React's render, so it reads the live value
+  // and edit state from refs rather than stale closures. While armed, this
+  // ref is the source of truth, advanced synchronously inside move() itself —
+  // not resynced from the `value` prop until editing ends. The OS repeat
+  // stream ticks every ~50 ms; a round trip through onChange -> App state ->
+  // re-render can take longer than that under load, and syncing from the
+  // (by-then-stale) prop on every render made each tick nudge from the same
+  // starting point as the last, so holding moved once and stalled.
   const editingRef = useRef<Editing>(editing);
   editingRef.current = editing;
   const valueRef = useRef(value);
   if (editing === null) valueRef.current = value;
-  const repeat = useRef<{ dir: -1 | 1; stop: () => void } | null>(null);
-
-  const stopRepeat = useCallback(() => {
-    repeat.current?.stop();
-    repeat.current = null;
-  }, []);
+  // whether a DOWN was seen since the last UP: the UP is a press's only
+  // guaranteed event, but after a repeat stream it must not add a notch
+  const sawDown = useRef(false);
 
   const move = useCallback(
     (dir: -1 | 1) => {
@@ -136,51 +141,28 @@ export function RangeSlider({
     [axis, onChange],
   );
 
-  const startRepeat = useCallback(
-    (dir: -1 | 1) => {
-      // Android autorepeats ACTION_DOWN while a key is held; the repeat is
-      // ours, so a resend for a direction already running is ignored
-      if (repeat.current?.dir === dir) return;
-      stopRepeat();
-
-      move(dir); // a tap is exactly one notch
-      let interval: ReturnType<typeof setInterval> | undefined;
-      const delay = setTimeout(() => {
-        interval = setInterval(() => move(dir), REPEAT_TICK_MS);
-      }, REPEAT_DELAY_MS);
-
-      repeat.current = {
-        dir,
-        stop: () => {
-          clearTimeout(delay);
-          if (interval) clearInterval(interval);
-        },
-      };
-    },
-    [move, stopRepeat],
-  );
-
   useTVEventHandler(
     useCallback(
       (evt: { eventType: string; eventKeyAction?: number }) => {
         if (editingRef.current === null) return;
-        const dir = evt.eventType === 'right' ? 1 : evt.eventType === 'left' ? -1 : 0;
+        const dir = dirOf(evt.eventType);
         if (!dir) return;
 
         if (evt.eventKeyAction === ACTION_DOWN) {
-          startRepeat(dir as -1 | 1);
+          // the OS repeat stream while a key is held: one notch per event —
+          // the cadence and the dead zone before it are the OS's own
+          sawDown.current = true;
+          move(dir);
           return;
         }
         if (evt.eventKeyAction === ACTION_UP) {
-          // A press that never delivered ACTION_DOWN still has to move the
-          // value once. Synthetic keyevents — adb, and therefore every
-          // automated check — arrive as ACTION_UP only, so without this the
-          // slider is inert under automation while working by hand.
-          if (!repeat.current) move(dir as -1 | 1);
-          stopRepeat();
+          // a press whose down never reached JS — every tap on this stack,
+          // and every adb check — still moves the value exactly once
+          if (!sawDown.current) move(dir);
+          sawDown.current = false;
         }
       },
-      [move, startRepeat, stopRepeat],
+      [move],
     ),
   );
 
@@ -189,9 +171,8 @@ export function RangeSlider({
   // exits the same way: values already applied live, so there is nothing to
   // commit, just the edit chrome to close
   const exitEditing = useCallback(() => {
-    stopRepeat();
     onEditingChange(null);
-  }, [stopRepeat, onEditingChange]);
+  }, [onEditingChange]);
 
   useEffect(() => {
     if (editing === null) return;
@@ -202,11 +183,8 @@ export function RangeSlider({
     return () => sub.remove();
   }, [editing, exitEditing]);
 
-  useEffect(() => stopRepeat, [stopRepeat]);
-
   /** null -> lower -> upper -> null */
   const step = () => {
-    stopRepeat();
     onEditingChange(editing === null ? 0 : editing === 0 ? 1 : null);
   };
 

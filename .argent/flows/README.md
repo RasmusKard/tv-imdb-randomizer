@@ -1,6 +1,6 @@
 # what.watch regression flows
 
-Seventeen Argent flows covering the app functionality as of the current UI
+Eighteen Argent flows covering the app functionality as of the current UI
 snapshot (Android TV, D-pad driven; touch directives do not exist on this
 platform, so navigation is recorded `tool: tv-remote` steps gated by `await:`
 identity/readiness checks).
@@ -24,6 +24,7 @@ identity/readiness checks).
 | qa-presets-replace | Replace a kept preset with a Great board; the card keeps its name but carries the new summary; ends deleted |
 | qa-presets-delete | Delete a kept preset; empty state answers and survives a relaunch |
 | qa-verdict-plot-focus | On a long-plot verdict (`+ more` visible), D-pad right from Pick another must stay on the action row — the focusable plot must not steal focus; the select after the right press must not open the plot. Deterministic because every title in the Classic+Awful+Obscure window was given a >210-char plot in the dev DB |
+| qa-slider-hold-repeat | Arm the rating slider and burst eight discrete rights — every press must land exactly one notch (adb presses arrive as ACTION_UP only; a held key drives the OS `longRight`/`longLeft` repeat stream, which the slider now moves once per event) |
 
 Known gap, reported to the owner: the delete/replace **undo** notice row is a
 focusable Pressable but is not reachable by D-pad from any neighbor — the
