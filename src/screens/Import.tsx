@@ -4,7 +4,9 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as Network from 'expo-network';
 import { File } from 'expo-file-system';
 import QRCode from 'react-native-qrcode-svg';
+import TcpSocket from 'react-native-tcp-socket';
 
+import { BASE } from '../api/base';
 import { pushWatched, type Session } from '../api/auth';
 import { extractImdbIds } from '../lib/csv';
 import { ActionButton } from '../components/ActionButton';
@@ -26,6 +28,56 @@ type LogLine = { text: string; kind: 'info' | 'ok' | 'err' };
 
 /** tvOS has no document picker UI at all; Android TV does (SAF). */
 const HAS_PICKER = !(Platform.OS === 'ios' && Platform.isTV);
+
+/**
+ * The LAN address the QR must point at. expo-network's getIpAddressAsync
+ * reads the Wi-Fi manager only, so an Ethernet TV box answers 0.0.0.0; the
+ * fallback dials the API host and reads the socket's own local address —
+ * the address this device reaches the world through is the address a phone
+ * on the same network needs. Best effort: on failure the paste path stays
+ * the route in.
+ */
+async function lanAddress(): Promise<string> {
+  const ip = await Network.getIpAddressAsync();
+  if (ip && ip !== '0.0.0.0') return ip;
+
+  let url: URL;
+  try {
+    url = new URL(BASE);
+  } catch {
+    return '';
+  }
+  // the emulator's LAN proxy: dialing it always "succeeds" through Android's
+  // NAT and reports a 10.0.2.15 no phone can reach — that build gets no QR
+  if (!url.hostname || url.hostname === '10.0.2.2') return '';
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const settle = (v: string) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve(v);
+    };
+    const timer = setTimeout(() => settle(''), 4000);
+    const socket = TcpSocket.createConnection(
+      {
+        host: url.hostname,
+        port: Number(url.port) || (url.protocol === 'https:' ? 443 : 80),
+      },
+      () => {
+        clearTimeout(timer);
+        // only an IPv4 the phone can dial: an IPv6 link-local is unreachable from elsewhere
+        const local = socket.localAddress ?? '';
+        settle(/^\d+\.\d+\.\d+\.\d+$/.test(local) && local !== '0.0.0.0' ? local : '');
+      },
+    );
+    socket.on('error', () => {
+      clearTimeout(timer);
+      settle('');
+    });
+  });
+}
 
 /**
  * The import screen. The main route is the QR: it hosts a small HTTP server on
@@ -95,9 +147,10 @@ export function Import({ session, onBack, onImported }: Props) {
     (async () => {
       try {
         // SDK 57 returns the address itself, not a { ip } record. A device with
-        // no Wi-Fi interface (the ATV emulator) answers 0.0.0.0 — the QR would
-        // point nowhere, so say so and leave the paste path as the route in.
-        const ip = await Network.getIpAddressAsync();
+        // no usable address at all (the ATV emulator) still answers 0.0.0.0
+        // after the fallback — the QR would point nowhere, so say so and leave
+        // the paste path as the route in.
+        const ip = await lanAddress();
         const reachable = !!ip && ip !== '0.0.0.0';
         const started = await startUploadServer((csv) => runImport(csv, 'upload'));
         if (stopped) {
