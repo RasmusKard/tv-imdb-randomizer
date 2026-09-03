@@ -1,0 +1,38 @@
+steps:
+  - echo: Keeping the same board twice must not stack a duplicate; the second keep answers already-kept and the list stays at one card. Ends with the preset deleted
+  - launch: com.delfiapp.tvimdbrandomizer
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - echo: Up 11 to the header, right onto your presets, select
+  - tool: tv-remote
+    args: { button: [up, up, up, up, up, up, up, up, up, up, up] }
+  - tool: tv-remote
+    args: { button: right }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { id: preset-keep } }
+  - await: { idle: true }
+  - echo: First keep; the card must appear
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { text: Load preset } }
+  - echo: Second keep on the same board; the answer must be already-kept and no duplicate card
+  - tool: tv-remote
+    args: { button: up }
+    delayMs: 600
+  - tool: tv-remote
+    args: { button: select }
+  - await: { text: { in: { text: already kept }, contains: already kept } }
+  - echo: Clean up - delete the card and the list must fall back to its empty state
+  - tool: tv-remote
+    args: { button: down }
+    delayMs: 600
+  - tool: tv-remote
+    args: { button: [right, right, right] }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { text: no presets yet } }
+  - tool: tv-remote
+    args: { button: back }
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }

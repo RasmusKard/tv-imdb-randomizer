@@ -1,0 +1,27 @@
+steps:
+  - echo: Turn Movies off, roll from a TV-shows-only board, and prove it on the verdict receipt; it must list TV shows alone
+  - launch: com.delfiapp.tvimdbrandomizer
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - echo: Up 10 reaches the Type row, one left pins focus on the Movies chip; select turns Movies off
+  - await: { visible: { id: chip-kind-movie } }
+  - tool: tv-remote
+    args: { button: [up, up, up, up, up, up, up, up, up, up] }
+    delayMs: 700
+  - await: { visible: { id: chip-kind-movie } }
+  - tool: tv-remote
+    args: { button: left }
+  - tool: tv-remote
+    args: { button: select }
+  - echo: Let the re-rendered board settle, walk down 11 to the pick button, roll
+  - tool: tv-remote
+    args: { button: [down, down, down, down, down, down, down, down, down, down, down] }
+    delayMs: 2000
+  - await: { visible: { id: btn-roll } }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { id: btn-roll-again } }
+  - echo: 'The receipt must read Filters: TV shows — Movies are gone from the board'
+  - await: { text: { in: { id: btn-receipt }, contains: 'Filters: TV shows,' } }
+  - await: { visible: { id: verdict-title } }
+  - await: { idle: true }

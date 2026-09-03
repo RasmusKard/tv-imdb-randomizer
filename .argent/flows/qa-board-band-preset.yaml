@@ -1,0 +1,16 @@
+steps:
+  - echo: Fresh launch; walk up into the rating band row and pick Great; the slider must take the band's 8.0-10 range
+  - launch: com.delfiapp.tvimdbrandomizer
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - echo: Up 8 presses lands on the rating band row; two lefts move focus onto Great
+  - tool: tv-remote
+    args:
+      button: [up, up, up, up, up, up, up, up]
+  - tool: tv-remote
+    args:
+      button: [left, left]
+  - echo: Select Great; the rating slider label must read 8.0 to 10.0
+  - tool: tv-remote
+    args: { button: select }
+  - await: { text: { in: { id: slider-rating }, equals: 'Rating 8.0 to 10.0' } }

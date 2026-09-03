@@ -1,0 +1,19 @@
+steps:
+  - echo: Roll from the default board; the verdict screen must arrive with tonight's title, then the receipt returns to the board
+  - launch: com.delfiapp.tvimdbrandomizer
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - echo: Select Pick tonight's show; expect the verdict overlay
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { id: btn-roll-again } }
+  - await: { visible: { id: verdict-title } }
+  - await: { visible: { id: btn-receipt } }
+  - await: { idle: true }
+  - echo: Down onto the receipt, select it; the board must return
+  - tool: tv-remote
+    args: { button: down }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }

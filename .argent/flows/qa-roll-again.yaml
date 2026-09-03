@@ -1,0 +1,17 @@
+steps:
+  - echo: Roll once, then Pick another from the verdict; a fresh verdict must replace the first
+  - launch: com.delfiapp.tvimdbrandomizer
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - echo: First roll; expect the verdict
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { id: btn-roll-again } }
+  - await: { idle: true }
+  - echo: Pick another; expect a new verdict with its own title and receipt
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { id: btn-roll-again } }
+  - await: { visible: { id: verdict-title } }
+  - await: { visible: { id: btn-receipt } }
+  - await: { idle: true }

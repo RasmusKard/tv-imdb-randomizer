@@ -1,0 +1,49 @@
+steps:
+  - echo: On a verdict with a long plot (+ more), D-pad right from Pick another must move along the action row - the plot must not steal focus. Selecting after the right press must not open the plot
+  - launch: com.delfiapp.tvimdbrandomizer
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - echo: Narrow to the long-plot window - rating Awful
+  - tool: tv-remote
+    args: { button: [up, up, up, up, up, up, up, up] }
+    delayMs: 700
+  - tool: tv-remote
+    args: { button: [right, right, right] }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { text: { in: { id: slider-rating }, equals: 'Rating 0.0 to 3.0' } }
+  - echo: Year Classic
+  - tool: tv-remote
+    args: { button: [down, down] }
+    delayMs: 800
+  - tool: tv-remote
+    args: { button: [right, right, right, right, right, right] }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { text: { in: { id: slider-year }, equals: 'Year 1894 to 1979' } }
+  - echo: Votes Obscure
+  - tool: tv-remote
+    args: { button: [down, down] }
+    delayMs: 800
+  - tool: tv-remote
+    args: { button: right }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { text: { in: { id: slider-votes }, equals: 'Votes 0 to 1.0K' } }
+  - echo: Walk down to the pick button and roll; the verdict must show the long plot with its + more affordance
+  - tool: tv-remote
+    args: { button: [down, down, down, down] }
+    delayMs: 800
+  - await: { visible: { id: btn-roll } }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { id: btn-roll-again } }
+  - await: { visible: { text: + more } }
+  - await: { idle: true }
+  - echo: Right from Pick another, then select; the plot must stay closed - + more still visible and the verdict still up
+  - tool: tv-remote
+    args: { button: right }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { text: + more } }
+  - await: { visible: { id: btn-roll-again } }

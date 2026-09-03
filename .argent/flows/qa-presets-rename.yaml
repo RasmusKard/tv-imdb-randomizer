@@ -1,0 +1,60 @@
+steps:
+  - echo: Rename a kept preset by typing a new name; the card must carry it. Starts by keeping this board and ends with the preset deleted
+  - launch: com.delfiapp.tvimdbrandomizer
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - echo: Up 11 to the header, right onto your presets, select
+  - tool: tv-remote
+    args: { button: [up, up, up, up, up, up, up, up, up, up, up] }
+  - tool: tv-remote
+    args: { button: right }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { id: preset-keep } }
+  - await: { idle: true }
+  - echo: Keep this board
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { text: Load preset } }
+  - echo: Down to the card, two rights onto Rename, select; the name field opens with the old name
+  - tool: tv-remote
+    args: { button: down }
+    delayMs: 600
+  - tool: tv-remote
+    args: { button: [right, right] }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { id: preset-rename-input } }
+  - echo: Type night picks, then down to leave the field; the card must carry the new name
+  - tool: keyboard
+    args: { text: night picks }
+  - await: { text: { in: { id: preset-rename-input }, equals: night picks } }
+  - tool: tv-remote
+    args: { button: down }
+  - await: { visible: { text: Load preset night picks } }
+  - echo: Clean up via the board so focus is known - back, presets, delete
+  - tool: tv-remote
+    args: { button: back }
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - tool: tv-remote
+    args: { button: [up, up, up, up, up, up, up, up, up, up, up] }
+    delayMs: 800
+  - tool: tv-remote
+    args: { button: right }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { text: Load preset night picks } }
+  - await: { idle: true }
+  - tool: tv-remote
+    args: { button: down }
+    delayMs: 600
+  - tool: tv-remote
+    args: { button: [right, right, right] }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { text: no presets yet } }
+  - tool: tv-remote
+    args: { button: back }
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }

@@ -1,0 +1,60 @@
+steps:
+  - echo: Replace a kept preset with the current board; the card must keep its name but carry the new Great summary. Ends with the preset deleted
+  - launch: com.delfiapp.tvimdbrandomizer
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - echo: Up 11 to the header, right onto your presets, select
+  - tool: tv-remote
+    args: { button: [up, up, up, up, up, up, up, up, up, up, up] }
+  - tool: tv-remote
+    args: { button: right }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { id: preset-keep } }
+  - await: { idle: true }
+  - echo: Keep the default board
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { text: Load preset } }
+  - echo: Back to the board and narrow it with the Great band
+  - tool: tv-remote
+    args: { button: back }
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - tool: tv-remote
+    args: { button: [up, up, up, up, up, up, up, up] }
+    delayMs: 800
+  - tool: tv-remote
+    args: { button: [left, left] }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { text: { in: { id: slider-rating }, equals: 'Rating 8.0 to 10.0' } }
+  - echo: Presets again, Replace on the card; the summary must now say 8.0-10.0 while the name keeps its default
+  - tool: tv-remote
+    args: { button: [up, up, up] }
+    delayMs: 800
+  - tool: tv-remote
+    args: { button: right }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { text: Load preset } }
+  - await: { idle: true }
+  - tool: tv-remote
+    args: { button: down }
+    delayMs: 600
+  - tool: tv-remote
+    args: { button: right }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { text: { in: { text: Load preset }, contains: 8.0–10.0 } }
+  - echo: Clean up - delete the card, the list must empty
+  - tool: tv-remote
+    args: { button: [right, right, right] }
+    delayMs: 600
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { text: no presets yet } }
+  - tool: tv-remote
+    args: { button: back }
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }

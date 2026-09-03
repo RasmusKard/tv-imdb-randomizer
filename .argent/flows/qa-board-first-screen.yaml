@@ -1,0 +1,9 @@
+steps:
+  - echo: Fresh launch of what.watch; expect the board with the pick button and the three header doors
+  - launch: com.delfiapp.tvimdbrandomizer
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - await: { visible: { id: btn-reset } }
+  - await: { visible: { id: board-presets } }
+  - await: { visible: { id: board-account } }
+  - assert: { visible: { text: what.watch } }

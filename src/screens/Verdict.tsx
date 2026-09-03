@@ -171,16 +171,6 @@ export function Verdict({ title, filters, remaining, notice, onRollAgain, onBack
                 ref={setPickNode}
                 style={styles.action}
               />
-              <ActionButton
-                label="IMDb"
-                caps={false}
-                variant="ghost"
-                testID={testId.imdb}
-                // a TV without a browser just fails the open; that is still better
-                // than a button that pretends to work and does nothing
-                onPress={() => Linking.openURL(`https://www.imdb.com/title/${title.tconst}/`).catch(() => {})}
-                style={styles.action}
-              />
               {plexUrl && (
                 <ActionButton
                   label="Open in Plex"

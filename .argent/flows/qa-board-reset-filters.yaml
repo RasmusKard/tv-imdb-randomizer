@@ -1,0 +1,20 @@
+steps:
+  - echo: Narrow the board with the Great rating band, then reset from the header; the slider must return to its default 5.0-10.0
+  - launch: com.delfiapp.tvimdbrandomizer
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - echo: Up 8 into the rating bands, two lefts onto Great, select it
+  - tool: tv-remote
+    args: { button: [up, up, up, up, up, up, up, up] }
+  - tool: tv-remote
+    args: { button: [left, left] }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { text: { in: { id: slider-rating }, equals: 'Rating 8.0 to 10.0' } }
+  - echo: Up 3 lands on the reset chip in the header; select it and the board must answer with its defaults
+  - tool: tv-remote
+    args: { button: [up, up, up] }
+    delayMs: 800
+  - tool: tv-remote
+    args: { button: select }
+  - await: { text: { in: { id: slider-rating }, equals: 'Rating 5.0 to 10.0' } }

@@ -1,0 +1,48 @@
+steps:
+  - echo: Keep the default board as a preset, wander the board to Great, then load the preset back; the board must return to its kept defaults
+  - launch: com.delfiapp.tvimdbrandomizer
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - echo: Up 11 to the header, right onto your presets, select; expect the presets screen with focus on Keep this board
+  - tool: tv-remote
+    args: { button: [up, up, up, up, up, up, up, up, up, up, up] }
+  - tool: tv-remote
+    args: { button: right }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { id: preset-keep } }
+  - await: { idle: true }
+  - echo: Select Keep this board; the card must appear in the list
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { text: Load preset } }
+  - echo: Back to the board and narrow it with the Great band so it differs from the kept preset
+  - tool: tv-remote
+    args: { button: back }
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - tool: tv-remote
+    args: { button: [up, up, up, up, up, up, up, up] }
+    delayMs: 800
+  - tool: tv-remote
+    args: { button: [left, left] }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { text: { in: { id: slider-rating }, equals: 'Rating 8.0 to 10.0' } }
+  - echo: 'Into presets again (up 3 to the header from the band row, right to presets), load the kept card; the board must return to 5.0-10.0'
+  - tool: tv-remote
+    args: { button: [up, up, up] }
+    delayMs: 800
+  - tool: tv-remote
+    args: { button: right }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { id: preset-keep } }
+  - await: { idle: true }
+  - tool: tv-remote
+    args: { button: down }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { id: btn-roll } }
+  - await: { text: { in: { id: slider-rating }, equals: 'Rating 5.0 to 10.0' } }
+  - await: { idle: true }

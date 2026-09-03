@@ -1,0 +1,23 @@
+steps:
+  - echo: A manual update check on the account screen must answer in the notice row; with no manifest configured the answer is up to date
+  - launch: com.delfiapp.tvimdbrandomizer
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - echo: Up 11 to the header, two rights onto the account chip, select; expect the account screen focused on Import from IMDb
+  - tool: tv-remote
+    args: { button: [up, up, up, up, up, up, up, up, up, up, up] }
+    delayMs: 700
+  - tool: tv-remote
+    args: { button: right }
+  - tool: tv-remote
+    args: { button: right }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { id: account-import } }
+  - await: { idle: true }
+  - echo: Right to Check for updates, select it; the notice must read up to date
+  - tool: tv-remote
+    args: { button: right }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { text: { in: { id: account-notice }, equals: up to date } }

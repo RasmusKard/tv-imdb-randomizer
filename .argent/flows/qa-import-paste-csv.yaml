@@ -1,0 +1,38 @@
+steps:
+  - echo: Import one IMDb id through the paste route; the totals line must report it found, and repeated runs stay stable because the id is already watched
+  - launch: com.delfiapp.tvimdbrandomizer
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - tool: tv-remote
+    args: { button: [up, up, up, up, up, up, up, up, up, up, up] }
+    delayMs: 700
+  - tool: tv-remote
+    args: { button: [right, right] }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { id: account-import } }
+  - await: { idle: true }
+  - echo: Into the import screen; on this TV the paste route leads
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { id: import-paste } }
+  - await: { idle: true }
+  - echo: Open the paste field, move up into it, type one id
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { id: import-paste-input } }
+  - tool: tv-remote
+    args: { button: up }
+  - type:
+      into: { id: import-paste-input }
+      text: tt0111161
+      submit: false
+  - await: { text: { in: { id: import-paste-input }, equals: tt0111161 } }
+  - echo: Down to the dock, left onto Import pasted, select it; the totals line must answer
+  - tool: tv-remote
+    args: { button: down }
+  - tool: tv-remote
+    args: { button: left }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { text: { in: { text: found }, matches: 'FOUND 1 · ADDED [01] · WATCHED 1' } }

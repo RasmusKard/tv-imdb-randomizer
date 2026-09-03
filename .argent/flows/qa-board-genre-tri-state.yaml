@@ -1,0 +1,20 @@
+steps:
+  - echo: Fresh launch; one D-pad up lands on the Sci-Fi genre chip, cycle it off - included - never show - off
+  - launch: com.delfiapp.tvimdbrandomizer
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - echo: One up from pick into the genre wall; expect focus on the Sci-Fi chip
+  - tool: tv-remote
+    args: { button: up }
+  - echo: Select Sci-Fi once; expect included
+  - tool: tv-remote
+    args: { button: select }
+  - await: { text: { in: { id: chip-genre-sci-fi }, equals: 'Sci-Fi, included' } }
+  - echo: Select Sci-Fi a second time; expect never show
+  - tool: tv-remote
+    args: { button: select }
+  - await: { text: { in: { id: chip-genre-sci-fi }, equals: 'Sci-Fi, never show' } }
+  - echo: Select Sci-Fi a third time; expect the chip back to off, ending on the launch baseline
+  - tool: tv-remote
+    args: { button: select }
+  - await: { text: { in: { id: chip-genre-sci-fi }, equals: Sci-Fi } }

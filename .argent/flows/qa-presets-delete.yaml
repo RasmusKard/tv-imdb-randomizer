@@ -1,0 +1,43 @@
+steps:
+  - echo: Delete a kept preset; the list must answer with its empty state and stay empty across a relaunch. The notice-row undo is not reachable by D-pad, so deletion itself is the tested behavior
+  - launch: com.delfiapp.tvimdbrandomizer
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - echo: Up 11 to the header, right onto your presets, select
+  - tool: tv-remote
+    args: { button: [up, up, up, up, up, up, up, up, up, up, up] }
+  - tool: tv-remote
+    args: { button: right }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { id: preset-keep } }
+  - await: { idle: true }
+  - echo: Keep this board, then delete the card; the deleted notice and the empty state must both answer
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { text: Load preset } }
+  - tool: tv-remote
+    args: { button: down }
+    delayMs: 600
+  - tool: tv-remote
+    args: { button: [right, right, right] }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { text: { in: { text: preset deleted }, contains: preset deleted } }
+  - await: { visible: { text: no presets yet } }
+  - echo: Relaunch; the list must still be empty - the delete persisted
+  - tool: restart-app
+    args: { bundleId: com.delfiapp.tvimdbrandomizer }
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - tool: tv-remote
+    args: { button: [up, up, up, up, up, up, up, up, up, up, up] }
+  - tool: tv-remote
+    args: { button: right }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { text: no presets yet } }
+  - tool: tv-remote
+    args: { button: back }
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }

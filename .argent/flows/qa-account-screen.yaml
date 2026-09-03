@@ -1,0 +1,22 @@
+steps:
+  - echo: Open the account screen from the board header; the device account summary and version must show, and back returns to the board
+  - launch: com.delfiapp.tvimdbrandomizer
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
+  - echo: Up 11 presses reaches the account chip in the header; select it
+  - tool: tv-remote
+    args: { button: [up, up, up, up, up, up, up, up, up, up, up] }
+    delayMs: 700
+  - tool: tv-remote
+    args: { button: [right, right] }
+  - tool: tv-remote
+    args: { button: select }
+  - await: { visible: { id: account-import } }
+  - await: { visible: { id: account-version } }
+  - await: { visible: { text: titles you have watched never roll again } }
+  - await: { idle: true }
+  - echo: Back returns to the board
+  - tool: tv-remote
+    args: { button: back }
+  - await: { visible: { id: btn-roll } }
+  - await: { idle: true }
