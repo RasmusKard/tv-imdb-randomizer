@@ -61,13 +61,26 @@ export function Verdict({ title, filters, remaining, notice, onRollAgain, onBack
     return () => clearTimeout(t);
   }, [thread, reduceMotion]);
 
-  // a long plot is readable, not clipped: OK on the plot (focusable only
-  // when long — three lines at this width hold roughly 210 characters) opens
-  // it to eight, OK again closes. Focus tints like a slider; a ring around
-  // prose would read as an alarm
-  const plotLong = (title.plot?.length ?? 0) > 210;
+  // a long plot is readable, not clipped: the plot takes whatever height the
+  // column has left above the action row, OK on it opens it to the whole
+  // slot, OK again closes. The cut is geometric, never guessed — a hidden
+  // unclamped copy of the text reports the height the full plot needs, and
+  // "+ more" appears only when that exceeds the slot's whole-line budget.
+  // (The text's own onTextLayout cannot be the oracle: on Android its line
+  // texts do not describe the clamped layout.) Focus tints like a slider; a
+  // ring around prose would read as an alarm
+  const [plotSlot, setPlotSlot] = useState(0);
+  const [plotFullHeight, setPlotFullHeight] = useState(0);
   const [plotOpen, setPlotOpen] = useState(false);
   useEffect(() => setPlotOpen(false), [title.tconst]);
+
+  const PLOT_LINE = s(42);
+  // whole lines the measured slot holds, never fewer than three
+  const fitLines = Math.max(3, Math.floor(plotSlot / PLOT_LINE));
+  // closed keeps one line back for the + more affordance
+  const closedLines = Math.max(3, fitLines - 1);
+  const plotCut = plotFullHeight > closedLines * PLOT_LINE + 1;
+  const plotOpenCut = plotFullHeight > fitLines * PLOT_LINE + 1;
 
   // the one-sheet can fail to load (dead CDN edge, TV offline at that moment);
   // the reel takes the frame back, and each new title starts with a clean slate
@@ -127,31 +140,48 @@ export function Verdict({ title, filters, remaining, notice, onRollAgain, onBack
               ))}
             </View>
 
-            {title.plot ? (
-              plotLong ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`${plotOpen ? 'Close' : 'Open'} the full plot. ${title.plot}`}
-                  onPress={() => setPlotOpen(!plotOpen)}
-                  style={({ focused }) => [styles.plotHit, focused && styles.plotFocused]}
+            {/* the slot always renders and always owns the column's slack —
+                the tail below used to take it with marginTop:auto, which
+                starves a flex child back to zero. Empty when there is no
+                plot; the tail then simply sits at the slot's bottom edge */}
+            <View style={styles.plotSlot} onLayout={(e) => setPlotSlot(e.nativeEvent.layout.height)}>
+              {/* the hidden unclamped copy whose height is the cut oracle */}
+              {title.plot ? (
+                <T
+                  style={[styles.plot, styles.plotMeasure]}
+                  onLayout={(e) => setPlotFullHeight(e.nativeEvent.layout.height)}
                 >
-                  <T style={styles.plot} numberOfLines={plotOpen ? 8 : 3}>
-                    {title.plot}
-                  </T>
-                  {/* the same contract as the receipt: a cut is stated. Eight
-                      lines hold roughly 590 characters at this width */}
-                  {!plotOpen ? (
-                    <T style={styles.plotMore}>+ more</T>
-                  ) : (title.plot?.length ?? 0) > 590 ? (
-                    <T style={styles.plotTrim}>trimmed — the rest is on IMDb</T>
-                  ) : null}
-                </Pressable>
-              ) : (
-                <T style={styles.plot} numberOfLines={3}>
                   {title.plot}
                 </T>
-              )
-            ) : null}
+              ) : null}
+              {/* nothing renders until the slot is measured: the first pass
+                  would clamp to three lines and flash + more on plots that
+                  actually fit */}
+              {title.plot && plotSlot > 0 ? (
+                plotCut ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`${plotOpen ? 'Close' : 'Open'} the full plot. ${title.plot}`}
+                    onPress={() => setPlotOpen(!plotOpen)}
+                    style={({ focused }) => [styles.plotHit, focused && styles.plotFocused]}
+                  >
+                    <T style={styles.plot} numberOfLines={plotOpen ? fitLines : closedLines}>
+                      {title.plot}
+                    </T>
+                    {/* the same contract as the receipt: a cut is stated */}
+                    {!plotOpen ? (
+                      <T style={styles.plotMore}>+ more</T>
+                    ) : plotOpenCut ? (
+                      <T style={styles.plotTrim}>trimmed — the rest is on IMDb</T>
+                    ) : null}
+                  </Pressable>
+                ) : (
+                  <T style={styles.plot} numberOfLines={fitLines}>
+                    {title.plot}
+                  </T>
+                )
+              ) : null}
+            </View>
 
             {/* the tail block pins to the column's bottom: the plot may grow
                 above it, the buttons never move */}
@@ -438,13 +468,21 @@ const styles = StyleSheet.create({
     borderRadius: s(2),
     overflow: 'hidden',
   }),
-  plotHit: { marginTop: s(26), alignSelf: 'flex-start' },
+  // the flexible region between the tags and the pinned action row — its
+  // measured height is the plot's whole-line budget
+  plotSlot: { flex: 1, marginTop: s(26) },
+  // the hidden oracle: full unclamped wrap of the plot at the slot's width —
+  // top/left/right only, never bottom, so its height stays the content's own
+  plotMeasure: { position: 'absolute', top: 0, left: 0, right: 0, opacity: 0 },
+  plotHit: { alignSelf: 'flex-start' },
   plotFocused: { backgroundColor: 'rgba(255,176,46,0.17)', borderRadius: layout.radius },
   plot: { ...text.body, lineHeight: s(42), color: colors.dim },
   plotMore: { ...text.body, lineHeight: s(42), color: colors.sodium },
   plotTrim: { ...text.body, lineHeight: s(42), color: colors.dim },
 
-  tail: { marginTop: 'auto' },
+  // no marginTop:auto here: the plot slot's flex:1 owns the slack, and an
+  // auto margin would starve it back to zero height
+  tail: {},
   rollNotice: { ...text.notice, paddingBottom: s(10) },
   actions: { flexDirection: 'row', gap: s(28), paddingBottom: s(20) },
   // three actions share the five columns; a fixed span would overflow at the third
