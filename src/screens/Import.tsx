@@ -10,6 +10,7 @@ import { extractImdbIds } from '../lib/csv';
 import { ActionButton } from '../components/ActionButton';
 import { T } from '../components/T';
 import { GridRow } from '../components/GridRow';
+import { Reel } from '../components/Reel';
 import { startUploadServer, type UploadOutcome } from '../server/uploadServer';
 import { groupThousands } from '../lib/format';
 import { colors, displayHeavy, layout, mono, monoBold, s, screen, text } from '../theme';
@@ -105,7 +106,7 @@ export function Import({ session, onBack, onImported }: Props) {
         }
         server = started;
         if (reachable) setUrl(`http://${ip}:${started.port}${started.path}`);
-        else setFatal(`No Wi-Fi address on this device (${ip}) — the QR cannot work; use Paste CSV`);
+        else setFatal(`no Wi-Fi address on this device (${ip}) — the QR cannot work; use Paste CSV`);
       } catch (e) {
         if (!stopped) setFatal((e as Error).message);
       }
@@ -137,7 +138,7 @@ export function Import({ session, onBack, onImported }: Props) {
       const csv = await new File(asset.uri).text();
       await runImport(csv, asset.name);
     } catch (e) {
-      addLog(`File pick failed: ${(e as Error).message}`, 'err');
+      addLog(`file pick failed: ${(e as Error).message}`, 'err');
     }
   }, [addLog, runImport]);
 
@@ -174,17 +175,31 @@ export function Import({ session, onBack, onImported }: Props) {
                   {url}
                 </T>
               </>
+            ) : fatal ? (
+              // the dead code: same card, same footprint, no white — white says
+              // "scanner target" and this one points nowhere. The reel is the
+              // booth's own stand-in for a picture that is not there, and the
+              // warning takes the URL's place beneath it
+              <>
+                <View style={styles.qrDead}>
+                  <Reel />
+                </View>
+                <T style={styles.fatal}>{fatal}</T>
+              </>
             ) : (
-              <T style={fatal ? styles.fatal : styles.waiting}>
-                {fatal ?? 'Same Wi-Fi as your phone, in a moment…'}
-              </T>
+              <T style={styles.waiting}>{fatal ?? 'Same Wi-Fi as your phone, in a moment…'}</T>
             )}
           </View>
 
           <View style={styles.side}>
             <T style={styles.step}>1 · On your phone: imdb.com, sign in</T>
             <T style={styles.step}>2 · Account menu → Your ratings → Export</T>
-            <T style={styles.step}>3 · Open this page on the phone, drop ratings.csv</T>
+            {/* the third step names the route that actually exists: with no
+                server there is no page to open, and the QR instructions would
+                point at a door that is not there */}
+            <T style={styles.step}>
+              {fatal ? '3 · Open ratings.csv, copy everything, paste it here' : '3 · Open this page on the phone, drop ratings.csv'}
+            </T>
 
             {/* the log lives here only once there is a log: an empty bordered
                 strip is a container doing proximity's job */}
@@ -270,6 +285,18 @@ const styles = StyleSheet.create({
   },
   url: mono(24, { color: colors.chalk, textAlign: 'center' }),
   waiting: { ...text.body, color: colors.dim, textAlign: 'center', marginTop: s(180) },
+  /** the dead QR card: the live card's exact footprint, unlit — slat, not
+   * white, because white is the scanner target and there is nothing to scan */
+  qrDead: {
+    width: s(380) + s(16) * 2,
+    height: s(380) + s(16) * 2,
+    justifyContent: 'center',
+    backgroundColor: colors.slat,
+    padding: s(16),
+    borderRadius: layout.radius,
+    borderWidth: layout.border,
+    borderColor: colors.slatHi,
+  },
   /** the warning voice: a dead server is a warning, not a quiet aside */
   fatal: { ...text.notice, textAlign: 'center' },
 

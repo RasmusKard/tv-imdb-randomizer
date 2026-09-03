@@ -98,13 +98,19 @@ export const RANGE_KEYS: RangeKey[] = ['rating', 'year', 'votes'];
 
 const slug = (v: string) => v.toLowerCase().replace(/\s+/g, '-');
 
-/** Stable ids so agent-device can assert which cell has focus. */
 export const testId = {
   kind: (k: TitleKind) => `chip-kind-${k}`,
   slider: (k: RangeKey) => `slider-${k}`,
   band: (k: RangeKey, name: string) => `band-${k}-${slug(name)}`,
   genre: (g: Genre) => `chip-genre-${slug(g)}`,
   roll: 'btn-roll',
+  reset: 'btn-reset',
+  presets: 'board-presets',
+  presetKeep: 'preset-keep',
+  preset: (id: string) => `preset-${id}`,
+  presetReplace: (id: string) => `preset-${id}-replace`,
+  presetRename: (id: string) => `preset-${id}-rename`,
+  presetDelete: (id: string) => `preset-${id}-delete`,
   rollAgain: 'btn-roll-again',
   imdb: 'btn-imdb',
   plex: 'btn-plex',

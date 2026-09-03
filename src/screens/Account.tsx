@@ -26,11 +26,11 @@ type Props = {
  * with the account.
  */
 export function Account({ session, onImport, onBack, update, onUpdate }: Props) {
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ text: string; kind: 'ok' | 'err' } | null>(null);
 
   // account notices change silently otherwise; announce them for TalkBack
   useEffect(() => {
-    if (notice) AccessibilityInfo.announceForAccessibility(notice);
+    if (notice) AccessibilityInfo.announceForAccessibility(notice.text);
   }, [notice]);
 
   useEffect(() => {
@@ -67,9 +67,9 @@ export function Account({ session, onImport, onBack, update, onUpdate }: Props) 
     try {
       const found = await checkForUpdate({ force: true });
       onUpdate(found);
-      if (!found) setNotice('up to date');
+      if (!found) setNotice({ text: 'up to date', kind: 'ok' });
     } catch (e) {
-      setNotice((e as { message?: string }).message ?? 'couldn\u2019t check — try again');
+      setNotice({ text: (e as { message?: string }).message ?? 'couldn\u2019t check — try again', kind: 'err' });
     } finally {
       setChecking(false);
     }
@@ -85,45 +85,47 @@ export function Account({ session, onImport, onBack, update, onUpdate }: Props) 
           <T style={styles.label}>titles you have watched never roll again</T>
         </View>
 
-        <View style={styles.form}>
-          <Row label="Device">
-            <T style={styles.value}>{session ? deviceTag(session.deviceId) : 'signing in…'}</T>
-          </Row>
-          <Row label="Titles watched">
-            <T style={styles.value}>{watchedCount !== null ? groupThousands(watchedCount) : '—'}</T>
-          </Row>
-          <View style={styles.row}>
-            <ActionButton label="Import from IMDb" testID="account-import" onPress={onImport} style={styles.wide} hasTVPreferredFocus />
+        {/* the screen's one split: the task on the left (facts and the way
+            in), the machine on the right (version, updates, their notices) —
+            the same 4+3 column split the import screen uses, so the grid
+            carries across both rooms of the house */}
+        <View style={styles.body}>
+          <View style={styles.form}>
+            <Row label="Device">
+              <T style={styles.value}>{session ? deviceTag(session.deviceId) : 'signing in…'}</T>
+            </Row>
+            <Row label="Titles watched">
+              <T style={styles.value}>{watchedCount !== null ? groupThousands(watchedCount) : '—'}</T>
+            </Row>
+            <View style={styles.row}>
+              <ActionButton label="Import from IMDb" testID="account-import" onPress={onImport} style={styles.wide} hasTVPreferredFocus />
+            </View>
           </View>
-        </View>
 
-        {update && (
-          <View style={styles.updateBlock}>
-            <UpdateCard
-              info={update}
-              testID="update-card"
-              onHandedOff={() => setNotice('installer opened — confirm it there')}
-              onError={setNotice}
+          <View style={styles.machine}>
+            <T style={styles.versionLabel} testID="account-version">
+              {version.versionName ?? 'dev'} ({version.versionCode})
+            </T>
+            <ActionButton
+              label={checking ? 'Checking…' : 'Check for updates'}
+              variant="ghost"
+              testID="account-check-updates"
+              onPress={checkForUpdates}
+              style={styles.checkButton}
             />
+            {update && (
+              <UpdateCard
+                info={update}
+                testID="update-card"
+                onHandedOff={() => setNotice({ text: 'installer opened — confirm it there', kind: 'ok' })}
+                onError={(text) => setNotice({ text, kind: 'err' })}
+              />
+            )}
+            <T style={notice?.kind === 'ok' ? styles.noticeOk : styles.notice} numberOfLines={2} testID="account-notice">
+              {notice?.text ?? ''}
+            </T>
           </View>
-        )}
-
-        <View style={styles.versionRow}>
-          <T style={styles.versionLabel} testID="account-version">
-            {version.versionName ?? 'dev'} ({version.versionCode})
-          </T>
-          <ActionButton
-            label={checking ? 'Checking…' : 'Check for updates'}
-            variant="ghost"
-            testID="account-check-updates"
-            onPress={checkForUpdates}
-            style={styles.checkButton}
-          />
         </View>
-
-        <T style={styles.notice} numberOfLines={2} testID="account-notice">
-          {notice ?? ''}
-        </T>
       </View>
     </View>
   );
@@ -150,26 +152,23 @@ const styles = StyleSheet.create({
   wordmark: displayHeavy(32, { em: -0.03, color: colors.chalk }),
   wordmarkDot: { color: colors.sodium },
 
-  form: { paddingTop: s(24), gap: s(18), width: layout.span(4) },
+  body: { flexDirection: 'row', gap: layout.gap, paddingTop: s(24), flex: 1 },
+  // the task column holds two rows and a door; centered in its span, it reads
+  // as a plate, not a form abandoned at the top of an empty column
+  form: { gap: s(18), width: layout.span(4), justifyContent: 'center' },
   fieldRow: { gap: s(6) },
   row: { flexDirection: 'row', gap: layout.gap },
   wide: { flex: 1 },
-  // sized, not stretched: the row is span(4), the check button takes span(2)
-  checkButton: { width: layout.span(2) },
+  // the machine column: version, updates, notices — one stacked block on the
+  // grid's right three columns, button full-width like every board dock;
+  // centered like the task column so the two plates share one midline
+  machine: { gap: s(18), width: layout.span(3), justifyContent: 'center' },
+  checkButton: { width: '100%' },
   value: mono(30, { color: colors.chalk }),
 
-  notice: { ...text.notice, marginTop: 'auto' },
+  // cyan speaks only for trouble; a good outcome answers in chalk
+  notice: { ...text.notice },
+  noticeOk: { ...text.label, color: colors.chalk },
   label: text.label,
-
-  updateBlock: { width: layout.span(4) },
-  versionRow: {
-    flexDirection: 'row',
-    gap: layout.gap,
-    width: layout.span(4),
-    alignItems: 'center',
-    // the update card used to sit between this row and the summary; keep the
-    // same breathing room now that the row can directly follow the form
-    paddingTop: s(24),
-  },
   versionLabel: text.label,
 });

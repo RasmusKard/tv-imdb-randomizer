@@ -39,8 +39,15 @@ export function buildQuery(f: Filters): string {
   const entries = Object.entries(f.genres) as [Genre, 'include' | 'exclude'][];
   const included = entries.filter(([, s]) => s === 'include').map(([g]) => g);
   const excluded = entries.filter(([, s]) => s === 'exclude').map(([g]) => g);
-  if (included.length) parts.push(`genres=ov.%7B${included.join(',')}%7D`);
-  if (excluded.length) parts.push(`genres=not.ov.%7B${excluded.join(',')}%7D`);
+  // two bare `genres=` params would silently overwrite each other — the
+  // include and the exclude must ride one `and()` or one of them is gone
+  if (included.length && excluded.length) {
+    parts.push(`genres=and(ov.%7B${included.join(',')}%7D,not.ov.%7B${excluded.join(',')}%7D)`);
+  } else if (included.length) {
+    parts.push(`genres=ov.%7B${included.join(',')}%7D`);
+  } else if (excluded.length) {
+    parts.push(`genres=not.ov.%7B${excluded.join(',')}%7D`);
+  }
 
   return parts.join('&');
 }

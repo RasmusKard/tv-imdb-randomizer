@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Image, Linking, Pressable, StyleSheet, View } from 'react-native';
-import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import type { Filters, GenreState, Title } from '../api/types';
 import { kindOf } from '../api/client';
@@ -8,6 +8,7 @@ import { AXES, RANGE_KEYS, testId } from '../config/filters';
 import { isWholeAxis } from '../lib/range';
 import { useReduceMotion } from '../lib/motion';
 import { ActionButton } from '../components/ActionButton';
+import { Reel } from '../components/Reel';
 import { T } from '../components/T';
 import { groupThousands } from '../lib/format';
 import { colors, displayHeavy, layout, mono, monoBold, s, screen, text } from '../theme';
@@ -17,6 +18,9 @@ type Props = {
   filters: Filters;
   /** How many titles are still unseen for these filters. */
   remaining: number;
+  /** A roll that failed while this verdict stayed up: the verdict answers
+   *  where the press happened, in the dock's own warning voice. */
+  notice?: string | null;
   onRollAgain: () => void;
   onBack: () => void;
 };
@@ -36,7 +40,7 @@ const THREAD_STEP_MS = 240;
  * filters present without putting them back on screen, and doubles as the way
  * back to the board.
  */
-export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Props) {
+export function Verdict({ title, filters, remaining, notice, onRollAgain, onBack }: Props) {
   const isSeries = kindOf(title.titleType) === 'series';
   const kindLabel = isSeries ? 'Series' : 'Movie';
   const reduceMotion = useReduceMotion();
@@ -56,6 +60,14 @@ export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Prop
     const t = setTimeout(() => setThread(thread - 1), THREAD_STEP_MS);
     return () => clearTimeout(t);
   }, [thread, reduceMotion]);
+
+  // a long plot is readable, not clipped: OK on the plot (focusable only
+  // when long — three lines at this width hold roughly 210 characters) opens
+  // it to eight, OK again closes. Focus tints like a slider; a ring around
+  // prose would read as an alarm
+  const plotLong = (title.plot?.length ?? 0) > 210;
+  const [plotOpen, setPlotOpen] = useState(false);
+  useEffect(() => setPlotOpen(false), [title.tconst]);
 
   // the one-sheet can fail to load (dead CDN edge, TV offline at that moment);
   // the reel takes the frame back, and each new title starts with a clean slate
@@ -81,10 +93,12 @@ export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Prop
         <View style={styles.grid}>
           <View style={styles.main}>
             <View style={styles.metaLine}>
-              <T style={styles.score}>
-                {title.averageRating.toFixed(1)}
-                <T style={styles.star}> ★</T>
-              </T>
+              <View style={styles.scoreRow}>
+                <T style={styles.score}>{title.averageRating.toFixed(1)}</T>
+                {/* drawn, not typed: glyphs never do icon duty, and a TTS
+                    engine never has to guess what a ★ is called */}
+                <Star />
+              </View>
               {meta.flatMap((m) => [
                 <View key={`${m}-tick`} style={styles.tick} />,
                 <T key={m} style={styles.metaText}>
@@ -114,15 +128,44 @@ export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Prop
             </View>
 
             {title.plot ? (
-              <T style={styles.plot} numberOfLines={3}>
-                {title.plot}
-              </T>
+              plotLong ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${plotOpen ? 'Close' : 'Open'} the full plot. ${title.plot}`}
+                  onPress={() => setPlotOpen(!plotOpen)}
+                  style={({ focused }) => [styles.plotHit, focused && styles.plotFocused]}
+                >
+                  <T style={styles.plot} numberOfLines={plotOpen ? 8 : 3}>
+                    {title.plot}
+                  </T>
+                  {/* the same contract as the receipt: a cut is stated. Eight
+                      lines hold roughly 590 characters at this width */}
+                  {!plotOpen ? (
+                    <T style={styles.plotMore}>+ more</T>
+                  ) : (title.plot?.length ?? 0) > 590 ? (
+                    <T style={styles.plotTrim}>trimmed — the rest is on IMDb</T>
+                  ) : null}
+                </Pressable>
+              ) : (
+                <T style={styles.plot} numberOfLines={3}>
+                  {title.plot}
+                </T>
+              )
             ) : null}
+
+            {/* the tail block pins to the column's bottom: the plot may grow
+                above it, the buttons never move */}
+            <View style={styles.tail}>
+            {notice ? <T style={styles.rollNotice} numberOfLines={1}>{notice}</T> : null}
 
             <View style={styles.actions}>
               <ActionButton
                 label="Pick another"
                 testID={testId.rollAgain}
+                // the overlay is pointer-transparent and this button holds
+                // focus, so a stray OK during the countdown would skip the
+                // verdict before it was ever seen — the print finishes first
+                disabled={thread > 0}
                 onPress={onRollAgain}
                 hasTVPreferredFocus
                 ref={setPickNode}
@@ -130,6 +173,7 @@ export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Prop
               />
               <ActionButton
                 label="IMDb"
+                caps={false}
                 variant="ghost"
                 testID={testId.imdb}
                 // a TV without a browser just fails the open; that is still better
@@ -148,6 +192,7 @@ export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Prop
                   style={styles.action}
                 />
               )}
+            </View>
             </View>
           </View>
 
@@ -168,7 +213,8 @@ export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Prop
                 <Reel />
               )}
               <View style={styles.posterFoot}>
-                <T style={styles.posterScore}>{title.averageRating.toFixed(1)} ★</T>
+                {/* the score already stands 44px amber in the meta line; the
+                    foot is the catalog id's plate — one amber per screen */}
                 <T style={styles.posterId}>{title.tconst}</T>
               </View>
             </View>
@@ -184,9 +230,13 @@ export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Prop
       </View>
 
       {thread > 0 && (
-        <View style={styles.leader} pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants">
+        // the arrival beat speaks too: the numeral carries the number, and
+        // nothing hides the frame behind it from a reader that got here
+        <View style={styles.leader} pointerEvents="none">
           <View style={styles.leaderRing} />
-          <T style={styles.leaderNum}>{thread}</T>
+          <T style={styles.leaderNum} accessibilityLabel={`threading up, ${thread}`}>
+            {thread}
+          </T>
         </View>
       )}
     </View>
@@ -200,6 +250,18 @@ export function Verdict({ title, filters, remaining, onRollAgain, onBack }: Prop
  * because an Android text shadow ends in a visible edge. Volumetric light
  * through the room, never a neon edge on anything.
  */
+/** The score's star: one drawn mark, same weight as the ledger beside it. */
+function Star() {
+  return (
+    <Svg width={s(22)} height={s(22)} viewBox="0 0 24 24">
+      <Path
+        d="M12 2.5l2.85 6.14 6.72.74-5 4.5 1.38 6.62L12 17.2l-5.95 3.3 1.38-6.62-5-4.5 6.72-.74z"
+        fill={colors.sodium}
+      />
+    </Svg>
+  );
+}
+
 function Gate() {
   return (
     <Svg
@@ -241,17 +303,6 @@ function Sprockets({ top }: { top?: boolean }) {
   );
 }
 
-/** The reel standing in whenever the one-sheet is missing. */
-function Reel() {
-  return (
-    <View style={styles.reel}>
-      <View style={styles.reelRim} />
-      <View style={styles.reelMid} />
-      <View style={styles.reelCore} />
-    </View>
-  );
-}
-
 /**
  * The active filters, and the way back. Spans all seven columns as a strip
  * of leader tape.
@@ -283,24 +334,66 @@ function Receipt({
   }
   const genres = Object.entries(filters.genres) as [string, GenreState][];
 
+  // the tape is also a ledger: it does not drop a filter silently. The tape is
+  // mono, so a segment's rendered width is its character count — walk the
+  // genre segments until the character budget runs out and count the rest,
+  // rather than letting numberOfLines ellipsize facts away
+  const countText = `${groupThousands(remaining)} left`;
+  const genreCharW = s(24) * 0.7; // mono advance 0.6em + 0.08em tracking, padded
+  const genreBudget =
+    layout.contentWidth - s(22) * 2 - s(28) - countText.length * s(26) * 0.7;
+  let spent = 0;
+  let shownGenres = 0;
+  let overflow = 0;
+  for (const [genre] of genres) {
+    const cost = (7 + genre.length) * genreCharW; // "  ·  ± name"
+    if (spent + cost > genreBudget) {
+      overflow = genres.length - shownGenres;
+      break;
+    }
+    spent += cost;
+    shownGenres += 1;
+  }
+  const genreSummary = genres
+    .slice(0, shownGenres)
+    .map(([genre, state]) => `${state === 'include' ? '+' : '−'} ${genre}`)
+    .join('  ·  ');
+
   return (
     <Pressable
       testID={testId.receipt}
       accessibilityRole="button"
-      accessibilityLabel={`Filters: ${parts.join(', ')}. ${remaining} left. Back to filters.`}
+      accessibilityLabel={`Filters: ${parts.join(', ')}${genres.length ? `, ${genreSummary}` : ''}${
+        overflow ? `, ${overflow} more` : ''
+      }. ${remaining} left. Back to filters.`}
       onPress={onPress}
       nextFocusUp={focusUpTarget ?? undefined}
       style={({ focused }) => [styles.receipt, focused && styles.receiptFocused]}
     >
-      <T style={styles.receiptText} numberOfLines={1}>
-        {parts.join('  ·  ')}
-        {genres.map(([genre, state]) => (
-          <T key={genre} style={state === 'include' ? styles.inc : styles.exc}>
-            {`  ·  ${state === 'include' ? '+' : '−'} ${genre}`}
+      {/* the tape states facts in two lines: what was asked (chalk), what it
+          meant (amber include, cyan exclude) — dim is for the separators only,
+          because dim on the tape's near-black was unreadable at three metres */}
+      <View style={styles.receiptLines}>
+        <T style={styles.receiptText} numberOfLines={1}>
+          {parts.map((part, i) => (
+            <T key={part}>
+              {i > 0 ? <T style={styles.receiptSep}>{'  ·  '}</T> : null}
+              <T style={styles.receiptFact}>{part}</T>
+            </T>
+          ))}
+        </T>
+        {genres.length > 0 && (
+          <T style={styles.receiptText} numberOfLines={1}>
+            {genres.slice(0, shownGenres).map(([genre, state]) => (
+              <T key={genre} style={state === 'include' ? styles.inc : styles.exc}>
+                {`  ·  ${state === 'include' ? '+' : '−'} ${genre}`}
+              </T>
+            ))}
+            {overflow > 0 && <T style={styles.inc}>{`  ·  +${overflow} more`}</T>}
           </T>
-        ))}
-      </T>
-      <T style={styles.receiptLeft}>{`${groupThousands(remaining)} left`}</T>
+        )}
+      </View>
+      <T style={styles.receiptLeft}>{countText}</T>
     </Pressable>
   );
 }
@@ -326,8 +419,8 @@ const styles = StyleSheet.create({
 
   metaLine: { flexDirection: 'row', alignItems: 'center', gap: s(20), marginTop: s(18) },
   tick: { width: StyleSheet.hairlineWidth, height: s(28), backgroundColor: colors.slatHi },
+  scoreRow: { flexDirection: 'row', alignItems: 'center', gap: s(8) },
   score: monoBold(44, { color: colors.sodium }),
-  star: { fontSize: s(24) },
   metaText: text.label,
 
   // the title stands in the gate light: silver emulsion, the bloom drawn as
@@ -355,16 +448,24 @@ const styles = StyleSheet.create({
     borderRadius: s(2),
     overflow: 'hidden',
   }),
-  plot: { ...text.body, lineHeight: s(42), color: colors.dim, marginTop: s(26), maxWidth: layout.span(4) },
+  plotHit: { marginTop: s(26), alignSelf: 'flex-start' },
+  plotFocused: { backgroundColor: 'rgba(255,176,46,0.17)', borderRadius: layout.radius },
+  plot: { ...text.body, lineHeight: s(42), color: colors.dim },
+  plotMore: { ...text.body, lineHeight: s(42), color: colors.sodium },
+  plotTrim: { ...text.body, lineHeight: s(42), color: colors.dim },
 
-  actions: { marginTop: 'auto', flexDirection: 'row', gap: s(28), paddingBottom: s(20) },
+  tail: { marginTop: 'auto' },
+  rollNotice: { ...text.notice, paddingBottom: s(10) },
+  actions: { flexDirection: 'row', gap: s(28), paddingBottom: s(20) },
   // three actions share the five columns; a fixed span would overflow at the third
   action: { flex: 1 },
 
   posterCol: { width: layout.span(2) },
   poster: {
     aspectRatio: 2 / 3,
-    padding: s(32),
+    // a thin mat, not a frame: the one-sheet owns the panel, the slat only
+    // binds its edge — a 32px mat letterboxed the art inside its own card
+    padding: s(10),
     borderRadius: layout.radius,
     backgroundColor: colors.slat,
     borderWidth: StyleSheet.hairlineWidth,
@@ -373,50 +474,20 @@ const styles = StyleSheet.create({
   },
   posterKind: mono(22, { em: 0.2, caps: true, color: colors.dim }),
   posterArt: { flex: 1, width: '100%', borderRadius: s(2), backgroundColor: colors.boardLo },
-  reel: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  reelRim: {
-    width: s(190),
-    height: s(190),
-    borderRadius: s(95),
-    borderWidth: s(3),
-    borderColor: 'rgba(232,230,220,0.22)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  reelMid: {
-    width: s(122),
-    height: s(122),
-    borderRadius: s(61),
-    borderWidth: s(3),
-    borderColor: 'rgba(232,230,220,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  reelCore: {
-    width: s(46),
-    height: s(46),
-    borderRadius: s(23),
-    borderWidth: s(3),
-    borderColor: 'rgba(255,176,46,0.55)',
-    shadowColor: colors.sodium,
-    shadowOpacity: 0.3,
-    shadowRadius: s(30),
-    elevation: 6,
-  },
   posterFoot: {
     marginTop: 'auto',
-    paddingTop: s(16),
+    paddingTop: s(10),
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.slatHi,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignSelf: 'stretch',
+    alignItems: 'center',
   },
-  posterScore: monoBold(24, { color: colors.sodium }),
   posterId: mono(24, { color: colors.dim }),
   credit: mono(18, { em: 0.1, caps: true, color: colors.dim, marginTop: s(10), textAlign: 'center' }),
 
-  // leader tape: one step above the unlit ground, amber ink for the count
+  // leader tape: one step above the unlit ground, amber ink for the count.
+  // Two 24px lines (2 x 30 leading) sit inside the 76px strip, so the tape
+  // never ellipsizes a filter away to stay one line
   receipt: {
     width: '100%',
     height: s(76),
@@ -430,8 +501,11 @@ const styles = StyleSheet.create({
     borderColor: colors.slatHi,
     backgroundColor: colors.tape,
   },
+  receiptLines: { flexDirection: 'column', gap: s(2), flexShrink: 1 },
   receiptFocused: { borderColor: colors.sodium },
   receiptText: mono(24, { em: 0.08, caps: true, color: colors.dim, flexShrink: 1 }),
+  receiptFact: { color: colors.chalk },
+  receiptSep: { color: colors.dim },
   inc: { color: colors.sodium },
   exc: { color: colors.cold, textDecorationLine: 'line-through' },
   receiptLeft: monoBold(26, { em: 0.08, caps: true, color: colors.sodium }),

@@ -4,26 +4,21 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import type { Filters, Genre, TitleKind } from '../api/types';
 import { ActionButton } from '../components/ActionButton';
 import { T } from '../components/T';
-import { Flaps } from '../components/Flaps';
 import { AXES, GENRES, KINDS, testId, type RangeKey } from '../config/filters';
 import { Chip, type ChipState } from '../components/Chip';
 import { GridRow } from '../components/GridRow';
 import { RangeSlider, type Editing } from '../components/RangeSlider';
-import { groupThousands } from '../lib/format';
 import { COLS, colors, displayHeavy, layout, mono, s, screen, text } from '../theme';
 
 type Props = {
   filters: Filters;
   setFilters: (f: Filters) => void;
-  /** Exact match count for the current filters, null until the debounced count lands. */
+  /** Exact match count for the current filters — drives the pick's zero-state. */
   count: number | null;
   /** True while a roll's batch fetch is in flight, so the button can say so. */
   picking: boolean;
   /** True while a newer count is in flight. */
   pending: boolean;
-  /** The corpus total, unfiltered. Null until fetched once at mount. */
-  corpus: number | null;
-  notice: string | null;
   onRoll: () => void;
   /** True when arriving back from a verdict, so the pick button takes focus on mount. */
   focusRoll?: boolean;
@@ -31,9 +26,12 @@ type Props = {
   /** An update was found; the banner is a pointer, the card lives on the account screen. */
   updateAvailable: boolean;
   onOpenUpdate: () => void;
+  /** Back to the default filters. Never touches the session's shown list. */
+  onReset: () => void;
+  onOpenPresets: () => void;
 };
 
-export function Board({ filters, setFilters, count, picking, pending, corpus, notice, onRoll, focusRoll, onOpenAccount, updateAvailable, onOpenUpdate }: Props) {
+export function Board({ filters, setFilters, count, picking, pending, onRoll, focusRoll, onOpenAccount, updateAvailable, onOpenUpdate, onReset, onOpenPresets }: Props) {
   // Android's FocusFinder scores by centre distance, so a full-width slider is
   // unreachable from a left-hand chip however close it is. Every row that sits
   // next to a slider therefore names it explicitly. See GridRow.
@@ -107,29 +105,36 @@ export function Board({ filters, setFilters, count, picking, pending, corpus, no
   };
 
   // the counter answers the same question everywhere: how many picks remain
-  // for these filters, and is that number the settled truth
-  const total = count ?? 0;
-  const settled = count !== null && !pending;
+  // for these filters — the pick's zero-state asks it here, the verdict's
+  // receipt answers it in digits
 
   return (
     <View style={screen.root}>
+      {/* the frame the screen is — same grammar as the verdict, full-bleed
+          film holes top and bottom, pointer-transparent, no layout shift */}
+      <Sprockets top />
+      <Sprockets />
       <View style={screen.safe}>
         <View style={styles.head}>
           <T style={styles.wordmark}>
             what<T style={styles.wordmarkDot}>.</T>watch
           </T>
           <View style={styles.headRight}>
-            {/* the counter lives in the corner: it is feedback, not a control,
-                and the dock belongs to the action and its warnings. The corpus
-                rides beside it, small and quiet — context for those looking
-                for it, invisible to those who are not */}
-            <View style={styles.counter} testID="dock-count" accessible accessibilityLabel={`${total} titles left`}>
-              <T style={styles.dockLabel}>Titles left:</T>
-              <Flaps value={total} settled={settled} />
-              {corpus !== null && (
-                <T style={styles.corpusNote}>(out of {groupThousands(corpus)})</T>
+            {/* the counter answers the pick, so it lives in the dock beside it
+                (and directly above the gate bar); reset is a utility, not a
+                warning — it rides the header with the other doors */}
+            <Pressable
+              testID={testId.reset}
+              accessibilityRole="button"
+              accessibilityLabel="Reset filters"
+              onPress={onReset}
+              nextFocusDown={typeFirst}
+              style={({ focused }) => [styles.accountChip, focused && styles.accountChipFocused]}
+            >
+              {({ focused }) => (
+                <T style={[styles.accountName, focused && styles.accountNameFocused]}>reset filters</T>
               )}
-            </View>
+            </Pressable>
             {updateAvailable && (
               <Pressable
                 testID="board-update"
@@ -138,9 +143,24 @@ export function Board({ filters, setFilters, count, picking, pending, corpus, no
                 onPress={onOpenUpdate}
                 style={({ focused }) => [styles.accountChip, styles.updateChip, focused && styles.accountChipFocused]}
               >
-                <T style={styles.updateLabel}>● update ready</T>
+                <View style={styles.updateDot} />
+                <T style={styles.updateLabel}>update ready</T>
               </Pressable>
             )}
+            {/* the presets door: same chip grammar as the import door beside
+                it — the board itself gains nothing else */}
+            <Pressable
+              testID={testId.presets}
+              accessibilityRole="button"
+              accessibilityLabel="Your presets — keep this board, load a saved one"
+              onPress={onOpenPresets}
+              nextFocusDown={typeFirst}
+              style={({ focused }) => [styles.accountChip, focused && styles.accountChipFocused]}
+            >
+              {({ focused }) => (
+                <T style={[styles.accountName, focused && styles.accountNameFocused]}>your presets</T>
+              )}
+            </Pressable>
             {/* the way into the list. It is a control, not a status light: the
                 device name is metadata and lives on the list screen — the chip
                 speaks the board's own chip grammar (raised slat, two lines,
@@ -150,6 +170,7 @@ export function Board({ filters, setFilters, count, picking, pending, corpus, no
               accessibilityRole="button"
               accessibilityLabel="Your list — import your IMDb titles"
               onPress={onOpenAccount}
+              nextFocusDown={typeFirst}
               style={({ focused }) => [styles.accountChip, focused && styles.accountChipFocused]}
             >
               {({ focused }) => (
@@ -221,7 +242,7 @@ export function Board({ filters, setFilters, count, picking, pending, corpus, no
             sliderBelow={null}
           />
 
-          <Block label="Genres" aside="once = include  ·  twice = never show">
+          <Block label="Genres" aside="once = include  ·  twice = never show" quiet>
             {[0, 1, 2].map((row) => (
               <GridRow
                 key={row}
@@ -238,10 +259,6 @@ export function Board({ filters, setFilters, count, picking, pending, corpus, no
                       variant="genre"
                       state={state}
                       testID={testId.genre(genre)}
-                      // the tri-state rides the label so a screen reader says it
-                      // and agent-device can assert it. "included", not "must
-                      // have": several included genres match ANY of them (the
-                      // API's `ov.` is an overlap), so the stronger wording lied
                       accessibilityLabel={
                         state === 'on'
                           ? `${genre}, included`
@@ -263,7 +280,6 @@ export function Board({ filters, setFilters, count, picking, pending, corpus, no
           count={count}
           pending={pending}
           picking={picking}
-          notice={notice}
           onRoll={() => {
             closeEdit();
             setFocusedKey(testId.roll);
@@ -277,25 +293,20 @@ export function Board({ filters, setFilters, count, picking, pending, corpus, no
 }
 
 /**
- * Counter, warning, pick — on the same seven columns as everything above.
- *
- * The number is the exact match count, fetched on a debounce after the last
- * filter change — 8-47ms server-side, cheap enough to run per "I'm done
- * fiddling" rather than guessed at. `pending` is true while a newer count is in
- * flight, and the dim `≈` mode covers exactly that gap.
+ * The pick, alone on the board's last row — the one gate. The count it rides
+ * on is invisible here: a settled zero is the bar's own disabled state, and
+ * the number itself is the verdict receipt's fact to state.
  */
 function Dock({
   count,
   pending,
   picking,
-  notice,
   onRoll,
   registerRoll,
 }: {
   count: number | null;
   pending: boolean;
   picking: boolean;
-  notice: string | null;
   onRoll: () => void;
   registerRoll: (node: View | null) => void;
 }) {
@@ -307,9 +318,6 @@ function Dock({
 
   return (
     <View style={styles.dock}>
-      <T style={styles.warn} numberOfLines={2}>
-        {notice ? notice : empty ? 'Nothing in here — widen a range' : total < 40 ? 'Very thin' : ''}
-      </T>
       <ActionButton
         label={picking ? 'Picking…' : "Pick tonight's show"}
         disabled={empty}
@@ -323,6 +331,17 @@ function Dock({
         }}
         style={styles.roll}
       />
+    </View>
+  );
+}
+
+/** A strip of film holes, top and bottom — the verdict's own frame grammar. */
+function Sprockets({ top }: { top?: boolean }) {
+  return (
+    <View pointerEvents="none" style={[styles.sprocketRow, top ? styles.sprocketTop : styles.sprocketBottom]}>
+      {Array.from({ length: 30 }, (_, i) => (
+        <View key={i} style={styles.sprocket} />
+      ))}
     </View>
   );
 }
@@ -426,12 +445,12 @@ function RangeBlock({
   );
 }
 
-function Block({ label, aside, children }: { label: string; aside?: string; children: ReactNode }) {
+function Block({ label, aside, quiet, children }: { label: string; aside?: string; /** the genres wall is fine-tuning, not an entry point: its head sits one step quieter, alpha of the same ink rather than a second grey */ quiet?: boolean; children: ReactNode }) {
   return (
     <View style={styles.block}>
       <View style={styles.blockHead}>
-        <T style={styles.label}>{label}</T>
-        {aside ? <T style={styles.label}>{aside}</T> : null}
+        <T style={[styles.label, quiet && styles.labelQuiet]}>{label}</T>
+        {aside ? <T style={[styles.label, quiet && styles.labelQuiet]}>{aside}</T> : null}
       </View>
       {children}
     </View>
@@ -439,6 +458,22 @@ function Block({ label, aside, children }: { label: string; aside?: string; chil
 }
 
 const styles = StyleSheet.create({
+  // the frame's own edges — flush with the bezel: the film runs off the screen
+  sprocketRow: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: s(22),
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+    backgroundColor: 'rgba(232,230,220,0.05)',
+    zIndex: 4,
+  },
+  sprocketTop: { top: 0 },
+  sprocketBottom: { bottom: 0 },
+  sprocket: { width: s(18), height: s(13), borderRadius: s(3), backgroundColor: colors.boardLo },
+
   head: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -454,10 +489,11 @@ const styles = StyleSheet.create({
   // the account door borrows the Chip's exact grammar — raised slat, two lines,
   // focus as ring + lift + brighten — so it reads as one of the board's controls
   accountChip: {
+    flexDirection: 'row',
     height: s(54),
     alignItems: 'center',
     justifyContent: 'center',
-    gap: s(3),
+    gap: s(10),
     paddingHorizontal: s(16),
     backgroundColor: colors.slat,
     borderRadius: layout.radius,
@@ -473,6 +509,13 @@ const styles = StyleSheet.create({
   accountName: mono(22, { em: 0.02, color: colors.dim }),
   accountNameFocused: { color: colors.chalk },
   updateChip: { borderColor: colors.sodium },
+  // the lamp as a drawn dot, not a typed bullet: glyphs never do icon duty
+  updateDot: {
+    width: s(10),
+    height: s(10),
+    borderRadius: s(5),
+    backgroundColor: colors.sodium,
+  },
   updateLabel: mono(24, { em: 0.2, caps: true, color: colors.sodium }),
 
   // the cadence: s(4) inside a block, s(14) between blocks — grouping is the
@@ -492,14 +535,9 @@ const styles = StyleSheet.create({
     paddingTop: s(2),
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.slatHi,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: layout.gap,
   },
-  counter: { flexDirection: 'row', alignItems: 'center', gap: s(8) },
-  dockLabel: text.label,
-  corpusNote: mono(18, { em: 0.08, caps: true, color: colors.dim }),
-  warn: { ...text.notice, width: layout.span(4) },
-  roll: { width: layout.span(3) },
+  roll: { width: layout.contentWidth },
   label: text.label,
+  // large-text 3:1 holds at this alpha on the board ground — checked, not guessed
+  labelQuiet: { opacity: 0.75 },
 });

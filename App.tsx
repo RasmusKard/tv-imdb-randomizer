@@ -39,6 +39,7 @@ import { Board } from './src/screens/Board';
 import { Verdict } from './src/screens/Verdict';
 import { Account } from './src/screens/Account';
 import { Import } from './src/screens/Import';
+import { Presets } from './src/screens/Presets';
 import { checkForUpdate } from './src/update/checker';
 import type { UpdateInfo } from './src/update/compare';
 
@@ -77,7 +78,7 @@ export default function App() {
   }, [fontsLoaded, fontError]);
 
   const [filters, setFiltersState] = useState<Filters>(INITIAL);
-  const [screen, setScreen] = useState<'board' | 'account' | 'import'>('board');
+  const [screen, setScreen] = useState<'board' | 'account' | 'import' | 'presets'>('board');
 
   // the account is the device: the stored token is reused, and otherwise the
   // ANDROID_ID signs in invisibly. The token rides every title query: the
@@ -139,7 +140,6 @@ export default function App() {
   const filtersRef = useRef(filters);
   filtersRef.current = filters;
 
-  const [corpus, setCorpus] = useState<number | null>(null);
   const [count, setCount] = useState<number | null>(null);
   const [pending, setPending] = useState(false);
   const [queue, setQueue] = useState<Title[]>([]);
@@ -151,9 +151,14 @@ export default function App() {
     if (notice) AccessibilityInfo.announceForAccessibility(notice);
   }, [notice]);
 
+  // the spoken form of the flaps: a settled count is exact, an in-flight one
+  // is approximate, and the change itself is the announcement — otherwise the
+  // counter is the one fact in the app a screen reader watches mutely
   useEffect(() => {
-    fetchCount('', undefined, sessionRef.current?.token).then(setCorpus).catch(() => {});
-  }, [session?.token, importedAt]);
+    if (count !== null && !pending) {
+      AccessibilityInfo.announceForAccessibility(`${count} titles left`);
+    }
+  }, [count, pending]);
 
   // one count per "I'm done fiddling": keyed on the filter set alone, so a
   // held slider does not fire a request per tick and a roll does not fire one
@@ -212,7 +217,8 @@ export default function App() {
           );
         } catch {
           setNotice('no answer — try again');
-          setTitle(null);
+          // the fetch had nothing to show; the title you were reading still
+          // does. Stay on the verdict — the notice waits on the board
           return;
         }
         // the filters changed while the batch was in flight: setFilters already
@@ -222,8 +228,7 @@ export default function App() {
         // exists — drop it and let the next roll fetch under the new filters.
         if (filtersRef.current !== filters) return;
         if (pool.length === 0) {
-          setNotice('Seen them all — widen a range');
-          setTitle(null);
+          setNotice('seen them all — widen a range');
           return;
         }
       }
@@ -256,6 +261,22 @@ export default function App() {
     setScreen('board');
     setReturned(true);
   }, []);
+  // loading a preset is a setFilters plus the way home: the board repaints,
+  // the pick button takes focus, and the shown list rides along untouched
+  const loadPreset = useCallback(
+    (preset: Filters) => {
+      setFilters(preset);
+      setScreen('board');
+      setReturned(true);
+    },
+    [setFilters],
+  );
+
+  const openPresets = useCallback(() => {
+    setScreen('presets');
+    setReturned(false);
+  }, []);
+
   const openImport = useCallback(() => {
     // the import pushes into the device's watched list, so it waits for the token
     if (sessionRef.current) setScreen('import');
@@ -283,6 +304,7 @@ export default function App() {
           title={title}
           filters={filters}
           remaining={count ?? 0}
+          notice={notice}
           onRollAgain={roll}
           onBack={toBoard}
         />
@@ -294,6 +316,8 @@ export default function App() {
           update={update}
           onUpdate={setUpdate}
         />
+      ) : screen === 'presets' ? (
+        <Presets filters={filters} onLoad={loadPreset} onBack={toBoardFromScreen} />
       ) : screen === 'import' && session ? (
         <Import session={session} onBack={toBoardFromScreen} onImported={onImported} />
       ) : (
@@ -303,13 +327,13 @@ export default function App() {
           count={count}
           pending={pending}
           picking={picking}
-          corpus={corpus}
-          notice={notice}
           onRoll={roll}
           focusRoll={returned}
           onOpenAccount={openAccount}
           updateAvailable={update !== null}
           onOpenUpdate={openAccount}
+          onReset={() => setFilters({ ...INITIAL })}
+          onOpenPresets={openPresets}
         />
       )}
     </>

@@ -31,10 +31,11 @@ Your corpus, no algorithm. Exact match counts, user-owned filters, watched-list 
 ## Capabilities and Constraints
 
 - filters: kinds (movie/series, last one cannot be removed), rating/year/votes dual-range sliders with seven band presets each, 21 genres cycling off → include → never-show
-- exact count of remaining matches, debounced per "done fiddling", shown as a split-flap counter; roll fetches a batch of 20 and drains it
+- exact count of remaining matches, debounced per "done fiddling" — spoken aloud on change, stated on the verdict receipt, and a settled zero disables the pick; the board itself carries no number; roll fetches a batch of 20 and drains it
 - session-level no-repeat (`shown` list); watched-list exclusion happens server-side when a session token rides the request
-- account: email/password sign-in and registration on-device (remote typing kept to exactly two fields by design)
-- verdict screen: title, rating, year, runtime, votes, genres, plot (when the API serves it), placeholder poster panel until TMDB support lands server-side; "Open in Plex" rides the same server-side lookup pattern
+- account: the device is the account — ANDROID_ID signs in invisibly (`POST /rpc/device_login` finds or creates it); there is no sign-in form, and remote typing never happens
+- presets: save the current board under its auto-name (the receipt line), load it back in two presses, replace a preset's filters while keeping its name, rename (typing only ever by choice), delete; device-only storage, unlimited count, list scrolls
+- verdict screen: title, rating, year, runtime, votes, genres, plot (when the API serves it; long plots open to full text with OK on the plot), placeholder poster panel until TMDB support lands server-side; "Open in Plex" rides the same server-side lookup pattern
 - Android TV overscan respected (5% inset); `REQUEST_INSTALL_PACKAGES` exists solely for the OTA handoff
 - undecided: none recorded beyond the two open server asks above
 ## Brand Commitments

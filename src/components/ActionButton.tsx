@@ -14,7 +14,7 @@ type Props = {
   disabled?: boolean;
   testID: string;
   onPress: () => void;
-  /** Roll fires its prefetch from here: one request per "I'm done fiddling". */
+  /** Roll fires its prefetch from here: one request per "done fiddling". */
   onFocus?: () => void;
   hasTVPreferredFocus?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -24,6 +24,10 @@ type Props = {
   nextFocusRight?: View | null;
   nextFocusUp?: View | null;
   nextFocusDown?: View | null;
+  /** False only for labels whose own casing is the brand's ("IMDb"): the
+   * recipe uppercases action labels, and it must not be allowed to misspell
+   * a proper noun doing it. */
+  caps?: boolean;
 };
 
 export function ActionButton({
@@ -40,6 +44,7 @@ export function ActionButton({
   nextFocusRight,
   nextFocusUp,
   nextFocusDown,
+  caps = true,
 }: Props) {
   return (
     <Pressable
@@ -71,6 +76,7 @@ export function ActionButton({
         <T
           style={[
             styles.label,
+            !caps && styles.labelAsWritten,
             disabled
               ? styles.labelDisabled
               : variant === 'ghost' && !focused
@@ -110,6 +116,7 @@ const styles = StyleSheet.create({
   },
   ghostFocused: { backgroundColor: colors.sodium, transform: [{ scale: 1.03 }], elevation: 12 },
   label: displayHeavy(28, { em: 0.12, caps: true }),
+  labelAsWritten: { textTransform: 'none' },
   labelSolid: { color: colors.onSodium },
   labelGhost: { color: colors.sodium },
   labelDisabled: { color: colors.dim },
