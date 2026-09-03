@@ -1,5 +1,5 @@
 steps:
-  - echo: Open the import screen from the account; the paste route must be offered, and back returns to the board
+  - echo: Open the import screen from the account; the QR is the only route, and on the ATV emulator it is fatally disabled with the header saying so
   - launch: com.delfiapp.tvimdbrandomizer
   - await: { visible: { id: btn-roll } }
   - await: { idle: true }
@@ -13,14 +13,14 @@ steps:
     args: { button: select }
   - await: { visible: { id: account-import } }
   - await: { idle: true }
-  - echo: Select Import from IMDb; expect the import screen
+  - echo: Select Import from IMDb; expect the import screen with only Back in the dock
   - tool: tv-remote
     args: { button: select }
-  - await: { visible: { id: import-paste } }
+  - await: { visible: { id: import-back } }
   - await: { visible: { id: import-back } }
   - await: { idle: true }
-  - echo: This Android TV emulator has no Wi-Fi address, so the import screen must fall back to its paste-CSV mode and say so in the header
-  - assert: { text: { in: { text: 'no upload server' }, contains: 'paste CSV is the way in' } }
+  - echo: This Android TV emulator has no LAN address, so the QR is fatally disabled and the header says so
+  - assert: { text: { in: { text: 'no upload server' }, contains: 'check the network and reopen' } }
   - echo: Back returns to the board
   - tool: tv-remote
     args: { button: back }

@@ -24,7 +24,7 @@ Your corpus, no algorithm. Exact match counts, user-owned filters, watched-list 
 
 - watched from a couch, ~3 metres from the panel, driven by a five-button D-pad remote (no pointer, no touch as primary path)
 - depends on the self-hosted **what-watch API** (PostgREST-style, `/title_full`), reached via `EXPO_PUBLIC_API_URL` — the app is a thin client; corpus, plots and posters are the server's job
-- IMDb ratings export (`ratings.csv`) is the user's existing list; import happens by scanning a QR shown on the TV, which opens an upload page hosted by the TV itself on the LAN (phone drops the file); SAF document picker and paste-CSV are fallbacks
+- IMDb ratings export (`ratings.csv`) is the user's existing list; import happens by scanning a QR shown on the TV, which opens an upload page hosted by the TV itself on the LAN (phone drops the file) — the only route
 - updates arrive as OTA: tags on the repo produce releases; the app checks daily, silently, and hands the APK to Android's system installer after an MD5 verify
 - development: Expo SDK 57 on `react-native-tvos`, `yarn prebuild:tv` then `yarn android`; `yarn typecheck` + `yarn checks` must stay green, CI runs them on push; no test framework beyond the one pure-logic check
 

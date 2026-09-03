@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BackHandler, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import * as DocumentPicker from 'expo-document-picker';
+import { BackHandler, ScrollView, StyleSheet, View } from 'react-native';
 import * as Network from 'expo-network';
-import { File } from 'expo-file-system';
 import QRCode from 'react-native-qrcode-svg';
 import TcpSocket from 'react-native-tcp-socket';
 
@@ -26,16 +24,12 @@ type Props = {
 
 type LogLine = { text: string; kind: 'info' | 'ok' | 'err' };
 
-/** tvOS has no document picker UI at all; Android TV does (SAF). */
-const HAS_PICKER = !(Platform.OS === 'ios' && Platform.isTV);
-
 /**
  * The LAN address the QR must point at. expo-network's getIpAddressAsync
  * reads the Wi-Fi manager only, so an Ethernet TV box answers 0.0.0.0; the
  * fallback dials the API host and reads the socket's own local address —
  * the address this device reaches the world through is the address a phone
- * on the same network needs. Best effort: on failure the paste path stays
- * the route in.
+ * on the same network needs. Best effort: on failure the screen goes fatal.
  */
 async function lanAddress(): Promise<string> {
   const ip = await Network.getIpAddressAsync();
@@ -80,18 +74,15 @@ async function lanAddress(): Promise<string> {
 }
 
 /**
- * The import screen. The main route is the QR: it hosts a small HTTP server on
- * the TV's own Wi-Fi address and shows the URL as a code, so a phone can open
- * the upload page and drop its IMDb export. Picking a file on the TV itself
- * and pasting CSV text are the fallbacks, in that order.
+ * The import screen. One route in: the QR. It hosts a small HTTP server on
+ * the TV's own LAN address and shows the URL as a code, so a phone can open
+ * the upload page and drop its IMDb export.
  */
 export function Import({ session, onBack, onImported }: Props) {
   const [url, setUrl] = useState<string | null>(null);
   const [fatal, setFatal] = useState<string | null>(null);
   const [log, setLog] = useState<LogLine[]>([]);
   const [totals, setTotals] = useState<{ found: number; added: number; total: number } | null>(null);
-  const [pasteOpen, setPasteOpen] = useState(false);
-  const [pasteText, setPasteText] = useState('');
 
   const sessionRef = useRef(session);
   sessionRef.current = session;
@@ -148,8 +139,7 @@ export function Import({ session, onBack, onImported }: Props) {
       try {
         // SDK 57 returns the address itself, not a { ip } record. A device with
         // no usable address at all (the ATV emulator) still answers 0.0.0.0
-        // after the fallback — the QR would point nowhere, so say so and leave
-        // the paste path as the route in.
+        // after the fallback — the QR would point nowhere, so say so.
         const ip = await lanAddress();
         const reachable = !!ip && ip !== '0.0.0.0';
         const started = await startUploadServer((csv) => runImport(csv, 'upload'));
@@ -159,7 +149,7 @@ export function Import({ session, onBack, onImported }: Props) {
         }
         server = started;
         if (reachable) setUrl(`http://${ip}:${started.port}${started.path}`);
-        else setFatal(`no Wi-Fi address on this device (${ip}) — the QR cannot work; use Paste CSV`);
+        else setFatal(`no usable network address on this device (${ip || 'none'}) — check the connection and reopen this screen`);
       } catch (e) {
         if (!stopped) setFatal((e as Error).message);
       }
@@ -172,34 +162,11 @@ export function Import({ session, onBack, onImported }: Props) {
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      // the input grammar: back closes the open row first, exits second
-      if (pasteOpen) {
-        setPasteOpen(false);
-        return true;
-      }
       onBack();
       return true;
     });
     return () => sub.remove();
-  }, [onBack, pasteOpen]);
-
-  const pickFile = useCallback(async () => {
-    try {
-      const res = await DocumentPicker.getDocumentAsync({ multiple: false });
-      if (res.canceled) return;
-      const asset = res.assets[0];
-      const csv = await new File(asset.uri).text();
-      await runImport(csv, asset.name);
-    } catch (e) {
-      addLog(`file pick failed: ${(e as Error).message}`, 'err');
-    }
-  }, [addLog, runImport]);
-
-  const importPaste = useCallback(async () => {
-    await runImport(pasteText, 'pasted CSV');
-    setPasteText('');
-    setPasteOpen(false);
-  }, [pasteText, runImport]);
+  }, [onBack]);
 
   return (
     <View style={screen.root}>
@@ -210,7 +177,7 @@ export function Import({ session, onBack, onImported }: Props) {
           </T>
           <T style={styles.label}>
             {fatal
-              ? 'no upload server — paste CSV is the way in'
+              ? 'no upload server — check the network and reopen this screen'
               : url
                 ? 'scan the code with your phone — it opens the upload page'
                 : 'starting the upload server…'}
@@ -247,12 +214,7 @@ export function Import({ session, onBack, onImported }: Props) {
           <View style={styles.side}>
             <T style={styles.step}>1 · On your phone: imdb.com, sign in</T>
             <T style={styles.step}>2 · Account menu → Your ratings → Export</T>
-            {/* the third step names the route that actually exists: with no
-                server there is no page to open, and the QR instructions would
-                point at a door that is not there */}
-            <T style={styles.step}>
-              {fatal ? '3 · Open ratings.csv, copy everything, paste it here' : '3 · Open this page on the phone, drop ratings.csv'}
-            </T>
+            <T style={styles.step}>3 · Open this page on the phone, drop ratings.csv</T>
 
             {/* the log lives here only once there is a log: an empty bordered
                 strip is a container doing proximity's job */}
@@ -272,42 +234,19 @@ export function Import({ session, onBack, onImported }: Props) {
                 </ScrollView>
               </View>
             )}
-
-            {pasteOpen ? (
-              <TextInput
-                style={styles.paste}
-                value={pasteText}
-                onChangeText={setPasteText}
-                multiline
-                allowFontScaling={false}
-                placeholder="paste the contents of ratings.csv here"
-                placeholderTextColor={colors.dim}
-                testID="import-paste-input"
-              />
-            ) : null}
           </View>
         </View>
 
         <View style={styles.dock}>
           <GridRow>
-            {/* paste mode replaces pick mode: four span(2) buttons would be
-                eight columns, and the back button would leave the screen */}
-            {HAS_PICKER && !pasteOpen ? (
-              <ActionButton label="Pick CSV" testID="import-pick" onPress={pickFile} style={styles.button} hasTVPreferredFocus={!fatal} />
-            ) : null}
-            {pasteOpen ? (
-              <ActionButton label="Import pasted" testID="import-paste-go" onPress={importPaste} style={styles.button} hasTVPreferredFocus={!HAS_PICKER} />
-            ) : null}
             <ActionButton
-              label={pasteOpen ? 'Close paste' : 'Paste CSV'}
+              label="Back"
               variant="ghost"
-              testID="import-paste"
-              onPress={() => setPasteOpen(!pasteOpen)}
-              // with no server there is exactly one working route in; it leads
-              hasTVPreferredFocus={!!fatal && !pasteOpen}
-              style={styles.button}
+              testID="import-back"
+              onPress={onBack}
+              hasTVPreferredFocus
+              style={styles.buttonWide}
             />
-            <ActionButton label="Back" variant="ghost" testID="import-back" onPress={onBack} style={styles.button} />
           </GridRow>
         </View>
       </View>
@@ -370,16 +309,7 @@ const styles = StyleSheet.create({
   logOk: mono(22, { color: colors.sodium }),
   logErr: mono(22, { color: colors.cold }),
 
-  paste: {
-    ...mono(22, { color: colors.chalk }),
-    backgroundColor: colors.slat,
-    borderColor: colors.slatHi,
-    borderWidth: layout.border,
-    borderRadius: layout.radius,
-    padding: s(12),
-    height: s(160),
-  },
-
   dock: { marginTop: 'auto', paddingTop: s(2), borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.slatHi },
-  button: { width: layout.span(2) },
+  // the QR path is driven from the phone; the only on-TV action is leaving
+  buttonWide: { width: layout.span(2) },
 });

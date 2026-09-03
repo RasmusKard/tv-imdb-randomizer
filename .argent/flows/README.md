@@ -1,6 +1,6 @@
 # what.watch regression flows
 
-Eighteen Argent flows covering the app functionality as of the current UI
+Seventeen Argent flows covering the app functionality as of the current UI
 snapshot (Android TV, D-pad driven; touch directives do not exist on this
 platform, so navigation is recorded `tool: tv-remote` steps gated by `await:`
 identity/readiness checks).
@@ -16,8 +16,7 @@ identity/readiness checks).
 | qa-roll-again | `Pick another` from a verdict produces a fresh verdict |
 | qa-account-screen | Account summary via the header chip; back returns to the board |
 | qa-account-check-updates | Manual update check answers `up to date` (build has no update manifest) |
-| qa-import-screen | Import screen paste fallback (the ATV emulator has no Wi-Fi address, so the QR is fatally disabled and the header says so); back returns to the board |
-| qa-import-paste-csv | Paste-imports `tt0111161`; totals line `FOUND 1 · ADDED [01] · WATCHED 1` stays stable across repeated runs (already-watched ids are idempotent) |
+| qa-import-screen | Import screen (the ATV emulator has no LAN address, so the QR is fatally disabled and the header says so); back returns to the board |
 | qa-presets-keep-load | Keep the default board, wander to Great, load the preset back; the board returns to its kept defaults (repeat-safe: the duplicate-keep guard holds the list at one card) |
 | qa-presets-keep-twice | Keeping the same board twice answers `already kept` and stacks no duplicate; ends deleted |
 | qa-presets-rename | Rename a kept preset to `night picks` (typed, committed by leaving the field); ends deleted |
@@ -48,9 +47,10 @@ Requires:
   release builds to talk to the plain-HTTP local API; it is kept uncommitted
   in `app.json`/`AndroidManifest.xml` so it never ships).
 
-Side effects: the import flow seeds one watched title (`tt0111161`) into the
-emulator's device account on the dev server (idempotent); the presets flows
-keep the device's preset list empty at start and end of every run.
+Side effects: none anymore — the import flow only opens the screen (its QR is
+fatally disabled on the ATV emulator, and the paste route is gone); the
+presets flows keep the device's preset list empty at start and end of every
+run.
 
 ## Recording environment notes
 
