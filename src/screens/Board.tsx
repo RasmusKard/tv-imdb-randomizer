@@ -84,6 +84,10 @@ export function Board({ filters, setFilters, count, picking, pending, onRoll, fo
   // used for the pick button on returning from a verdict.
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
 
+  // the header chip doubles as the install trigger once an update is found:
+  // each press bumps the counter, the card owns the download itself
+  const [installTick, setInstallTick] = useState(0);
+
   const toggleKind = (kind: TitleKind) => {
     const has = filters.kinds.includes(kind);
     // never let the last one go — an empty type filter matches nothing useful
@@ -184,18 +188,23 @@ export function Board({ filters, setFilters, count, picking, pending, onRoll, fo
               )}
             </Pressable>
             {/* the manual check lives here now: its answer is the notice line
-                below and, when one is found, the install card above the dock */}
+                below and, when one is found, the same chip becomes the install
+                trigger for the card above the dock */}
             <Pressable
               testID="board-check-updates"
               accessibilityRole="button"
-              accessibilityLabel={checking ? 'Checking for updates' : 'Check for updates'}
-              onPress={onCheckUpdates}
+              accessibilityLabel={update ? 'Install update' : checking ? 'Checking for updates' : 'Check for updates'}
+              onPress={() => (update ? setInstallTick((t) => t + 1) : onCheckUpdates())}
               nextFocusDown={typeFirst}
-              style={({ focused }) => [styles.accountChip, focused && styles.accountChipFocused]}
+              style={({ focused }) => [
+                styles.accountChip,
+                update && styles.updateChip,
+                focused && styles.accountChipFocused,
+              ]}
             >
               {({ focused }) => (
-                <T style={[styles.accountName, focused && styles.accountNameFocused]}>
-                  {checking ? 'checking…' : 'check for updates'}
+                <T style={[styles.accountName, update && styles.updateLabel, focused && styles.accountNameFocused]}>
+                  {update ? 'install update' : checking ? 'checking…' : 'check for updates'}
                 </T>
               )}
             </Pressable>
@@ -300,7 +309,7 @@ export function Board({ filters, setFilters, count, picking, pending, onRoll, fo
             another screen for the one action that changes the app itself */}
         {update && (
           <View style={styles.updateRow}>
-            <UpdateCard info={update} testID="board-update-card" />
+            <UpdateCard info={update} testID="board-update-card" installTick={installTick} />
           </View>
         )}
         {/* the board's one notice line: the update check answers here, and so

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ActionButton } from './ActionButton';
@@ -10,6 +10,8 @@ import { downloadUpdate, installUpdate } from '../update/installer';
 type Props = {
   info: UpdateInfo;
   testID?: string;
+  /** Bumped by the board's header chip whenever it fires as an install trigger. */
+  installTick?: number;
   /** Fired after the installer intent went out; the APK itself installs outside the app. */
   onHandedOff?: () => void;
   /** Fired with a human-readable reason when download, checksum or handoff failed. */
@@ -20,9 +22,10 @@ type Props = {
  * One update, offered. A single button does the whole thing: download with
  * progress, verify the MD5, then hand the APK to the system installer —
  * there is nothing worth a second state past that, the installer owns the
- * rest of the flow.
+ * rest of the flow. The header chip can start it too, by bumping
+ * `installTick`.
  */
-export function UpdateCard({ info, testID = 'update-card', onHandedOff, onError }: Props) {
+export function UpdateCard({ info, testID = 'update-card', installTick = 0, onHandedOff, onError }: Props) {
   // null = idle; while a fraction, the button is replaced by the progress bar
   const [progress, setProgress] = useState<number | null>(null);
 
@@ -40,8 +43,14 @@ export function UpdateCard({ info, testID = 'update-card', onHandedOff, onError 
     }
   };
 
+  // the chip's press: every bump past the first mount starts the install
+  useEffect(() => {
+    if (installTick > 0) install();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [installTick]);
+
   return (
-    <View style={styles.card} testID={testID}>
+    <View style={[styles.card, progress === null && styles.cardReady]} testID={testID}>
       <View style={styles.head}>
         <T style={styles.version} testID={`${testID}-version`}>
           {info.versionName}
@@ -92,6 +101,10 @@ const styles = StyleSheet.create({
     padding: s(16),
     gap: s(12),
   },
+  /** an offered update shouts: the one card on the board with a lamp edge,
+   *  matching the header's update-ready dot — until the download takes over
+   *  and the progress bar becomes the state */
+  cardReady: { borderColor: colors.sodium, borderWidth: s(3) },
   head: { gap: s(4) },
   // a version is a number, so the ledger carries it — not Archivo
   version: monoBold(32, { color: colors.sodium }),
