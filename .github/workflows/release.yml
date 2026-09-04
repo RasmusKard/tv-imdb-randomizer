@@ -39,15 +39,10 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      # dependency cache warmed on main by ci.yml's warm-gradle job; nothing is
-      # saved here because a cache saved under a tag can never be read again
-      - uses: actions/cache/restore@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('yarn.lock', 'package.json', 'plugins/**') }}
-          restore-keys: gradle-${{ runner.os }}-
+      # restores the Gradle state warmed on main by ci.yml's warm-gradle job;
+      # a tag run is not the default branch, so setup-gradle treats it as
+      # read-only and writes nothing back
+      - uses: gradle/actions/setup-gradle@v6
       - run: yarn --frozen-lockfile
 
       - name: Stamp the version from the tag
