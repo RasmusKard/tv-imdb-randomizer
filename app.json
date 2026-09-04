@@ -20,7 +20,15 @@
         }
       ],
       "expo-font",
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/icon-1024x1024.png",
+          "imageWidth": 300,
+          "resizeMode": "contain",
+          "backgroundColor": "#0A0A0C"
+        }
+      ],
       "expo-status-bar"
     ],
     "android": {
