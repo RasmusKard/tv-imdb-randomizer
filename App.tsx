@@ -19,7 +19,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, BackHandler } from 'react-native';
+import { AccessibilityInfo, BackHandler, DeviceEventEmitter } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
@@ -46,6 +46,24 @@ import type { UpdateInfo } from './src/update/compare';
 // the splash holds until the booth's own faces are in, so the first frame
 // anyone sees is already the committed world
 SplashScreen.preventAutoHideAsync();
+
+// The QA seam a hold needs: RN's TV helper never forwards the native key
+// stream to JS (see RangeSlider), so no remote tooling can hold a D-pad key
+// where the slider would see it. qa-slider-hold-ramp instead calls this from
+// the debugger to emit the one long* DOWN and the final UP a real held key
+// delivers, straight onto the emitter those events arrive on. __DEV__ only.
+if (__DEV__) {
+  (globalThis as { __tvdHold?: (dir: 'longRight' | 'longLeft', holdMs: number) => void }).__tvdHold =
+    (dir, holdMs) => {
+      DeviceEventEmitter.emit('onHWKeyEvent', { eventType: dir, eventKeyAction: 0 });
+      setTimeout(() => {
+        DeviceEventEmitter.emit('onHWKeyEvent', {
+          eventType: dir === 'longRight' ? 'right' : 'left',
+          eventKeyAction: 1,
+        });
+      }, holdMs);
+    };
+}
 
 /**
  * Three screens, no deep links, and the verdict overlaying whichever of them
