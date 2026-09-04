@@ -1,6 +1,6 @@
 # what.watch regression flows
 
-Eighteen Argent flows covering the app functionality as of the current UI
+Nineteen Argent flows covering the app functionality as of the current UI
 snapshot (Android TV, D-pad driven; touch directives do not exist on this
 platform, so navigation is recorded `tool: tv-remote` steps gated by `await:`
 identity/readiness checks).
@@ -25,6 +25,7 @@ identity/readiness checks).
 | qa-presets-delete | Delete a kept preset; empty state answers and survives a relaunch |
 | qa-verdict-plot-focus | On a long-plot verdict (`+ more` visible), D-pad right from Pick another must stay on the action row — the focusable plot must not steal focus; the select after the right press must not open the plot. Deterministic because every title in the Classic+Awful+Obscure window was given a >210-char plot in the dev DB |
 | qa-slider-hold-repeat | Arm the rating slider and burst eight discrete rights — every press must land exactly one notch (adb presses arrive as ACTION_UP only; a held key drives the OS `longRight`/`longLeft` repeat stream, which the slider now moves once per event) |
+| qa-slider-hold-ramp | Arm the rating slider and replay a real-device *hold* through the `__DEV__` seam (`globalThis.__tvdHold` in App.tsx emits the one `longLeft` DOWN and the UP 4.2s in — the only two events a held key delivers); the slider must stream past its long-press notch (≥ 2 notches; the stalled build lands exactly one and fails). Ends reset to defaults. Needs the debug build + Metro (the seam and `debugger-evaluate` are dev-only); the ramp's cadence itself is renderer-load-bound and was measured by hand — ~24 notches per 4.2s hold under swiftshader, full traverse on real hardware |
 
 Known gap, reported to the owner: the delete/replace **undo** notice row is a
 focusable Pressable but is not reachable by D-pad from any neighbor — the
@@ -47,6 +48,11 @@ Requires:
   `android:usesCleartextTraffic="true"` (the manifest patch is required for
   release builds to talk to the plain-HTTP local API; it is kept uncommitted
   in `app.json`/`AndroidManifest.xml` so it never ships).
+
+Exception: `qa-slider-hold-ramp` replays its hold through the JS runtime
+(`debugger-evaluate` → `globalThis.__tvdHold`), so it runs against the debug
+build with Metro connected (`adb reverse tcp:8081 tcp:8081`) instead of the
+release APK.
 
 Side effects: none anymore — the import flow only opens the screen (its QR is
 fatally disabled on the ATV emulator, and the paste route is gone); the

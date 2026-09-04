@@ -23,8 +23,15 @@ const handleMode = (side: 0 | 1, editing: Editing, focused: boolean): HandleMode
 const ACTION_DOWN = 0;
 const ACTION_UP = 1;
 
-/** Constant repeat interval once a hold is known — no acceleration. */
-const REPEAT_TICK_MS = 100;
+/**
+ * Hold-repeat cadence. The tick starts at the pace a tap-press rhythm has and
+ * shortens with every notch, easing to the floor: short hops keep the familiar
+ * pace, long traverses accelerate the way native D-pad UIs do. 0.87 lands on
+ * the floor by the ninth tick — a touch over half a second of holding.
+ */
+const REPEAT_TICK_START_MS = 100;
+const REPEAT_TICK_FLOOR_MS = 35;
+const REPEAT_TICK_DECAY = 0.87;
 
 /**
  * D-pad left/right, plain or long. What useTVEventHandler delivers on Android
@@ -123,7 +130,7 @@ export function RangeSlider({
   // they read the live value and edit state from refs rather than stale
   // closures. While armed, this ref is the source of truth, advanced
   // synchronously inside move() itself — not resynced from the `value` prop
-  // until editing ends. A tick fires every REPEAT_TICK_MS; a round trip
+  // until editing ends. A tick fires at the hold's (shortening) pace; a round trip
   // through onChange -> App state -> re-render can take longer than that
   // under load, and syncing from the (by-then-stale) prop on every render
   // made each tick nudge from the same starting point as the last, so
@@ -151,21 +158,36 @@ export function RangeSlider({
   );
 
   // A held key arrives as ONE long* DOWN (the helper collapses the OS repeat
-  // stream), so the interval here is the repeat stream. The signal is already
+  // stream), so the ticks here are the repeat stream. The signal is already
   // ~300 ms into the hold when it lands — the dead zone before repeats is the
-  // OS's own long-press delay — so ticking starts immediately. A resend for a
-  // direction already running is ignored.
+  // OS's own long-press delay — so ticking starts immediately. The stream
+  // ramps: each tick books the next at the decayed pace, down to the floor.
+  // A resend for a direction already running is ignored.
   const startRepeat = useCallback(
     (dir: -1 | 1) => {
       if (repeat.current?.dir === dir) return;
       stopRepeat();
 
       move(dir); // the hold's first notch
-      const interval = setInterval(() => move(dir), REPEAT_TICK_MS);
+
+      // self-scheduling timeout rather than an interval, because the gap to
+      // the next notch shrinks as the hold wears on
+      let ticks = 0;
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      const book = (ms: number) => {
+        timer = setTimeout(() => {
+          move(dir);
+          ticks += 1;
+          book(Math.max(REPEAT_TICK_FLOOR_MS, REPEAT_TICK_START_MS * REPEAT_TICK_DECAY ** ticks));
+        }, ms);
+      };
+      book(REPEAT_TICK_START_MS);
 
       repeat.current = {
         dir,
-        stop: () => clearInterval(interval),
+        stop: () => {
+          if (timer) clearTimeout(timer);
+        },
       };
     },
     [move, stopRepeat],
