@@ -32,7 +32,7 @@ import {
 } from '@expo-google-fonts/chivo-mono';
 
 import { buildQuery, fetchBatch, fetchCount, setUnauthorizedHandler, withShown } from './src/api/client';
-import { deviceLogin, loadSession, saveSession, clearSession, pushWatched, type Session } from './src/api/auth';
+import { deviceLogin, fetchWatched, loadSession, saveSession, clearSession, pushWatched, type Session } from './src/api/auth';
 import type { Filters, Title } from './src/api/types';
 import { AXES, THIS_YEAR } from './src/config/filters';
 import { Board } from './src/screens/Board';
@@ -99,9 +99,8 @@ export default function App() {
   const [screen, setScreen] = useState<'board' | 'account' | 'import' | 'presets'>('board');
 
   // the account is the device: the stored token is reused, and otherwise the
-  // ANDROID_ID signs in invisibly. The token rides every title query: the
-  // server excludes this user's watched titles from the corpus when it sees a
-  // valid Bearer, so an authenticated roll cannot serve something already seen.
+  // ANDROID_ID signs in invisibly. The token rides every title query, and the
+  // seen list below rides every roll: the two halves of "never roll again".
   const [session, setSessionState] = useState<Session | null>(null);
   const sessionRef = useRef(session);
   sessionRef.current = session;
@@ -109,7 +108,10 @@ export default function App() {
   useEffect(() => {
     loadSession()
       .then((s) => s ?? deviceLogin())
-      .then(setSessionState)
+      // setSession, not the raw setter: the token must land in AsyncStorage,
+      // or every cold start mints its own identity and the watched list
+      // orphans under yesterday's throwaway account
+      .then(setSession)
       .catch(() => {}); // no account yet — the board reads the anonymous corpus
   }, []);
 
@@ -119,12 +121,29 @@ export default function App() {
     else clearSession();
   }, []);
 
+  // the seen list, kept client-side as well: the server's watched exclusion
+  // on title_full has proven untrustworthy (a fresh device token and a
+  // just-pushed title still leaked through it), so the roll filters against
+  // this set itself. Refilled on every sign-in, watched mark and import.
+  const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
+  const watchedRef = useRef(watchedIds);
+  watchedRef.current = watchedIds;
+  useEffect(() => {
+    if (!session) return;
+    fetchWatched(session.token)
+      .then((ids) => setWatchedIds(new Set(ids)))
+      .catch(() => {}); // an unreadable list must not blank the board
+  }, [session]);
+
   // a token the server rejects means the stored session is dead: forget it and
   // sign in again as the same device — the board reads anonymous meanwhile.
   // Fires once per dead token however many requests were in flight with it.
+  // The queue is dropped with the dead token: whatever it fetched anonymously
+  // predates the watched list and could serve seen titles for rolls to come.
   useEffect(() => {
     setUnauthorizedHandler(() => {
       setSession(null);
+      setQueue([]);
       deviceLogin()
         .then(setSession)
         .catch(() => setNotice('device sign-in failed — titles already watched may roll again'));
@@ -160,9 +179,14 @@ export default function App() {
   }, [checking]);
 
   // bumped after an import: everything the server counts changes behind a
-  // token the client already holds, so both counters must be refetched
+  // token the client already holds, so both counters must be refetched — and
+  // the roll queue must go, too: it was fetched before the import, so its
+  // titles predate the watched list and several of them are already seen
   const [importedAt, setImportedAt] = useState(0);
-  const onImported = useCallback(() => setImportedAt((n) => n + 1), []);
+  const onImported = useCallback(() => {
+    setQueue([]);
+    setImportedAt((n) => n + 1);
+  }, []);
 
   // session state, not a filter: it survives filter changes so a roll never
   // repeats, and it is read through a ref so the count debounce below does not
@@ -242,15 +266,20 @@ export default function App() {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), ROLL_TIMEOUT_MS);
     try {
-      let pool = queue;
+      // the queue and any fresh batch both pass the seen-filter: the server's
+      // watched exclusion on title_full cannot be trusted, so the roll
+      // enforces its own copy of the watched list
+      let pool = queue.filter((t) => !watchedRef.current.has(t.tconst));
       if (pool.length === 0) {
         try {
-          pool = await fetchBatch(
-            withShown(buildQuery(filters), shownRef.current),
-            20,
-            controller.signal,
-            sessionRef.current?.token,
-          );
+          pool = (
+            await fetchBatch(
+              withShown(buildQuery(filters), shownRef.current),
+              20,
+              controller.signal,
+              sessionRef.current?.token,
+            )
+          ).filter((t) => !watchedRef.current.has(t.tconst));
         } catch {
           setNotice('no answer — try again');
           // the fetch had nothing to show; the title you were reading still
@@ -296,6 +325,13 @@ export default function App() {
       setNotice('could not add — try again');
       throw new Error('watched push failed');
     }
+    // the set leads the server list: the next rolls must not serve this title
+    // even if the watched refetch or the server's own exclusion lags
+    setWatchedIds((prev) => {
+      const next = new Set(prev);
+      next.add(tconst);
+      return next;
+    });
     setShown((s) => (s.includes(tconst) ? s : [...s, tconst]));
     setCount((c) => (c === null || c === 0 ? c : c - 1));
     setNotice('added to your list — it never rolls again');
