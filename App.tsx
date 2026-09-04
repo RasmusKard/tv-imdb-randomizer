@@ -151,7 +151,7 @@ export default function App() {
     try {
       const found = await checkForUpdate({ force: true });
       setUpdate(found);
-      setNotice(found ? `version ${found.versionName} is ready — install it below` : 'up to date');
+      setNotice(found ? `version ${found.versionName} is ready` : 'up to date');
     } catch (e) {
       setNotice((e as { message?: string }).message ?? 'couldn\u2019t check — try again');
     } finally {

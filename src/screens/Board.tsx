@@ -9,7 +9,7 @@ import { Chip, type ChipState } from '../components/Chip';
 import { GridRow } from '../components/GridRow';
 import { RangeSlider, type Editing } from '../components/RangeSlider';
 import { COLS, colors, displayHeavy, layout, mono, s, screen, text } from '../theme';
-import { UpdateCard } from '../components/UpdateCard';
+import { UpdateModal } from '../components/UpdateModal';
 import type { UpdateInfo } from '../update/compare';
 import { checkForUpdate } from '../update/checker';
 
@@ -26,7 +26,7 @@ type Props = {
   /** True when arriving back from a verdict, so the pick button takes focus on mount. */
   focusRoll?: boolean;
   onOpenAccount: () => void;
-  /** An update the app has found; the header lamp says so, the card below the board installs it. */
+  /** An update the app has found; the header chip offers the install, the modal over the board runs it. */
   update: UpdateInfo | null;
   /** Runs the manual check: finds (or fails) and sets the notice line. */
   onCheckUpdates: () => Promise<void>;
@@ -84,9 +84,9 @@ export function Board({ filters, setFilters, count, picking, pending, onRoll, fo
   // used for the pick button on returning from a verdict.
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
 
-  // the header chip doubles as the install trigger once an update is found:
-  // each press bumps the counter, the card owns the download itself
-  const [installTick, setInstallTick] = useState(0);
+  // once an update is found the chip stops checking and opens the install
+  // modal instead — one door per state, the label says which
+  const [updateOpen, setUpdateOpen] = useState(false);
 
   const toggleKind = (kind: TitleKind) => {
     const has = filters.kinds.includes(kind);
@@ -147,14 +147,6 @@ export function Board({ filters, setFilters, count, picking, pending, onRoll, fo
                 <T style={[styles.accountName, focused && styles.accountNameFocused]}>reset filters</T>
               )}
             </Pressable>
-            {update && (
-              // the lamp, not a door: pressing would go nowhere the card below
-              // is not already — it says the card is worth reading
-              <View style={[styles.accountChip, styles.updateChip]} accessibilityLabel="Update available">
-                <View style={styles.updateDot} />
-                <T style={styles.updateLabel}>update ready</T>
-              </View>
-            )}
             {/* the presets door: same chip grammar as the import door beside
                 it — the board itself gains nothing else */}
             <Pressable
@@ -187,14 +179,14 @@ export function Board({ filters, setFilters, count, picking, pending, onRoll, fo
                 </>
               )}
             </Pressable>
-            {/* the manual check lives here now: its answer is the notice line
-                below and, when one is found, the same chip becomes the install
-                trigger for the card above the dock */}
+            {/* the manual check lives here: its answer is the notice line
+                below; once an update stands, the same chip opens the install
+                modal over the board */}
             <Pressable
               testID="board-check-updates"
               accessibilityRole="button"
               accessibilityLabel={update ? 'Install update' : checking ? 'Checking for updates' : 'Check for updates'}
-              onPress={() => (update ? setInstallTick((t) => t + 1) : onCheckUpdates())}
+              onPress={() => (update ? setUpdateOpen(true) : onCheckUpdates())}
               nextFocusDown={typeFirst}
               style={({ focused }) => [
                 styles.accountChip,
@@ -305,12 +297,10 @@ export function Board({ filters, setFilters, count, picking, pending, onRoll, fo
           </Block>
         </View>
 
-        {/* the update, offered where the rest of the app lives — no detour to
-            another screen for the one action that changes the app itself */}
-        {update && (
-          <View style={styles.updateRow}>
-            <UpdateCard info={update} testID="board-update-card" installTick={installTick} />
-          </View>
+        {/* the install runs in a modal over the filters: the changelog gets
+            the room the board never had, and the board keeps its shape */}
+        {update && updateOpen && (
+          <UpdateModal info={update} onClose={() => setUpdateOpen(false)} testID="board-update-modal" />
         )}
         {/* the board's one notice line: the update check answers here, and so
             do the errors a roll can raise (previously silent on this screen) */}
@@ -553,13 +543,8 @@ const styles = StyleSheet.create({
   accountName: mono(22, { em: 0.02, color: colors.dim }),
   accountNameFocused: { color: colors.chalk },
   updateChip: { borderColor: colors.sodium },
-  // the lamp as a drawn dot, not a typed bullet: glyphs never do icon duty
-  updateDot: {
-    width: s(10),
-    height: s(10),
-    borderRadius: s(5),
-    backgroundColor: colors.sodium,
-  },
+  // an offered update announces itself on the chip itself — amber border,
+  // amber caps label; no lamp beside it, the label already says the state
   updateLabel: mono(24, { em: 0.2, caps: true, color: colors.sodium }),
 
   // the cadence: s(4) inside a block, s(14) between blocks — grouping is the
@@ -580,7 +565,6 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.slatHi,
   },
-  updateRow: { paddingTop: s(14) },
   boardNotice: { ...text.notice, paddingTop: s(10) },
   roll: { width: layout.contentWidth },
   label: text.label,
