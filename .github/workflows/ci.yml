@@ -25,3 +25,50 @@ jobs:
       - run: yarn --frozen-lockfile
       - run: yarn typecheck
       - run: yarn checks
+
+  # a release run is triggered by a tag, and caches saved under a tag are
+  # unreachable by every later run (tags cannot restore each other) - so
+  # release.yml can only ride a cache scoped to main. this job keeps that
+  # cache current: cold when the lockfile or plugins change, then a short
+  # restore-and-exit on pushes that don't touch the dependency set
+  warm-gradle:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: actions/cache/restore@v4
+        id: gradle
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('yarn.lock', 'package.json', 'plugins/**') }}
+          restore-keys: gradle-${{ runner.os }}-
+      - run: yarn --frozen-lockfile
+      - run: yarn prebuild:tv
+      # an exact-key hit means nothing new to resolve; a partial (restore-keys)
+      # restore only has the delta to download, then it re-saves under the
+      # full key. --stop parks the daemon so the save never snapshots locks
+      # held mid-write
+      - if: steps.gradle.outputs.cache-hit != 'true'
+        run: |
+          cd android
+          ./gradlew :app:assembleDebug
+          ./gradlew --stop
+      - if: steps.gradle.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('yarn.lock', 'package.json', 'plugins/**') }}
