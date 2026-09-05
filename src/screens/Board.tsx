@@ -23,8 +23,6 @@ type Props = {
   /** True while a newer count is in flight. */
   pending: boolean;
   onRoll: () => void;
-  /** True when arriving back from a verdict, so the pick button takes focus on mount. */
-  focusRoll?: boolean;
   onOpenAccount: () => void;
   /** An update the app has found; the header chip offers the install, the modal over the board runs it. */
   update: UpdateInfo | null;
@@ -39,7 +37,7 @@ type Props = {
   onOpenPresets: () => void;
 };
 
-export function Board({ filters, setFilters, count, picking, pending, onRoll, focusRoll, onOpenAccount, update, onCheckUpdates, checking, notice, onReset, onOpenPresets }: Props) {
+export function Board({ filters, setFilters, count, picking, pending, onRoll, onOpenAccount, update, onCheckUpdates, checking, notice, onReset, onOpenPresets }: Props) {
   // Android's FocusFinder scores by centre distance, so a full-width slider is
   // unreachable from a left-hand chip however close it is. Every row that sits
   // next to a slider therefore names it explicitly. See GridRow.
@@ -341,7 +339,6 @@ function Dock({
   onRoll: () => void;
   registerRoll: (node: View | null) => void;
 }) {
-  const total = count ?? 0;
   const settled = count !== null && !pending;
   // disable only on a *settled* zero: a stale count from before a filter change
   // must not grey the button out for the pending gap and back

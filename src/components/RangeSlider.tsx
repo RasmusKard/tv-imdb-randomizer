@@ -220,6 +220,9 @@ export function RangeSlider({
   const startRepeat = useCallback(
     (side: 0 | 1, dir: -1 | 1) => {
       if (repeat.current?.dir === dir) return;
+      // an opposite direction while a hold is running would overwrite the
+      // stream and leave the old self-rescheduling timer ticking alongside
+      stopRepeat();
 
       move(side, dir); // the hold's first notch
 
@@ -432,7 +435,7 @@ const styles = StyleSheet.create({
     height: HEIGHT,
     width: layout.contentWidth,
     borderRadius: layout.radius,
-    backgroundColor: 'rgba(255,255,255,0.022)',
+    backgroundColor: 'rgba(232,230,220,0.03)',
   },
   sliderFocused: { backgroundColor: 'rgba(255,176,46,0.17)' },
   sliderArmed: { backgroundColor: 'rgba(255,176,46,0.32)' },

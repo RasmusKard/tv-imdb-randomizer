@@ -157,7 +157,10 @@ export function Presets({ filters, onLoad, onBack }: Props) {
           accessibilityRole="button"
           accessibilityLabel={`Keep this board: ${autoName(filters)}`}
           onPress={keep}
-          hasTVPreferredFocus={presets.length === 0}
+          // the screen owns its initial focus like the board's dock does —
+          // with a card list present nothing else claims it, and the first
+          // D-pad press would land nowhere
+          hasTVPreferredFocus
           style={({ focused }) => [styles.saveRow, focused && styles.saveRowFocused]}
         >
           <T style={styles.saveTitle}>+ keep this board</T>

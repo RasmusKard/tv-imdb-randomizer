@@ -16,8 +16,9 @@ import { colors, displayHeavy, layout, mono, monoBold, s, screen, text } from '.
 type Props = {
   title: Title;
   filters: Filters;
-  /** How many titles are still unseen for these filters. */
-  remaining: number;
+  /** How many titles are still unseen for these filters — null when the
+   *  count is unknown (the fetch failed; a false zero would lie). */
+  remaining: number | null;
   /** A roll that failed while this verdict stayed up: the verdict answers
    *  where the press happened, in the dock's own warning voice. */
   notice?: string | null;
@@ -331,7 +332,7 @@ function Receipt({
   focusUpTarget,
 }: {
   filters: Filters;
-  remaining: number;
+  remaining: number | null;
   onPress: () => void;
   focusUpTarget: View | null;
 }) {
@@ -352,7 +353,9 @@ function Receipt({
   // mono, so a segment's rendered width is its character count — walk the
   // genre segments until the character budget runs out and count the rest,
   // rather than letting numberOfLines ellipsize facts away
-  const countText = `${groupThousands(remaining)} left`;
+  const known = remaining !== null;
+  const countText = known ? `${groupThousands(remaining)} left` : '—';
+  const countSpoken = known ? `${groupThousands(remaining)} left` : 'count unknown';
   const genreCharW = s(24) * 0.7; // mono advance 0.6em + 0.08em tracking, padded
   const genreBudget =
     layout.contentWidth - s(22) * 2 - s(28) - countText.length * s(26) * 0.7;
@@ -379,7 +382,7 @@ function Receipt({
       accessibilityRole="button"
       accessibilityLabel={`Filters: ${parts.join(', ')}${genres.length ? `, ${genreSummary}` : ''}${
         overflow ? `, ${overflow} more` : ''
-      }. ${remaining} left. Back to filters.`}
+      }. ${countSpoken}. Back to filters.`}
       onPress={onPress}
       nextFocusUp={focusUpTarget ?? undefined}
       style={({ focused }) => [styles.receipt, focused && styles.receiptFocused]}

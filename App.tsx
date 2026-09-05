@@ -117,8 +117,11 @@ export default function App() {
 
   const setSession = useCallback((s: Session | null) => {
     setSessionState(s);
-    if (s) saveSession(s);
-    else clearSession();
+    // a persist that fails must not die as an unhandled rejection: the
+    // watched list would orphan under the throwaway account the next cold
+    // start mints, which is exactly what the notice below warns about
+    if (s) saveSession(s).catch(() => setNotice('couldn\u2019t save — titles already watched may roll again'));
+    else clearSession().catch(() => {});
   }, []);
 
   // the seen list, kept client-side as well: the server's watched exclusion
@@ -344,21 +347,17 @@ export default function App() {
     setNotice('added to your list — it never rolls again');
   }, []);
 
-  // coming back from a verdict, focus belongs on the pick button — that is where you left
-  // from, and it is one press from both rolling again and editing filters
-  const [returned, setReturned] = useState(false);
+  // the board's dock owns initial focus on every mount (hasTVPreferredFocus),
+  // so returning from a verdict or a screen needs no focus hand-off here
   const toBoard = useCallback(() => {
     setTitle(null);
-    setReturned(true);
   }, []);
 
   const openAccount = useCallback(() => {
     setScreen('account');
-    setReturned(false);
   }, []);
   const toBoardFromScreen = useCallback(() => {
     setScreen('board');
-    setReturned(true);
   }, []);
   // loading a preset is a setFilters plus the way home: the board repaints,
   // the pick button takes focus, and the shown list rides along untouched
@@ -366,14 +365,12 @@ export default function App() {
     (preset: Filters) => {
       setFilters(preset);
       setScreen('board');
-      setReturned(true);
     },
     [setFilters],
   );
 
   const openPresets = useCallback(() => {
     setScreen('presets');
-    setReturned(false);
   }, []);
 
   const openImport = useCallback(() => {
@@ -402,7 +399,7 @@ export default function App() {
         <Verdict
           title={title}
           filters={filters}
-          remaining={count ?? 0}
+          remaining={count}
           notice={notice}
           onRollAgain={roll}
           onWatched={markWatched}
@@ -422,7 +419,6 @@ export default function App() {
           pending={pending}
           picking={picking}
           onRoll={roll}
-          focusRoll={returned}
           onOpenAccount={openAccount}
           update={update}
           onCheckUpdates={checkUpdates}
