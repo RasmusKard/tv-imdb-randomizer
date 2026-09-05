@@ -1,16 +1,17 @@
 steps:
   - echo: >-
-      Arm the rating slider's lower handle and replay a real-device HOLD through
-      the __DEV__ seam: globalThis.__tvdHold emits the one longLeft DOWN and the
-      UP 4.2s in — exactly the two events RN lets a held key deliver (the native
-      repeat stream is swallowed upstream, so no remote tooling can hold a key
-      where the slider would see it). The slider must STREAM notches: a hold
-      that lands only the long-press notch is the regression this pins. The
-      ramp's exact cadence is renderer-load-bound (swiftshader quantizes timers
-      to frames; ~24 notches per 4.2s hold on the dev booth, full traverse on
-      real hardware), so the assert bounds the count, not the pace. Needs the
-      debug build with Metro connected — the seam is __DEV__-only. Ends reset
-      to the board's defaults.
+      Focus the rating slider and replay a real-device HOLD through the __DEV__
+      seam: globalThis.__tvdHold emits the one longLeft DOWN and the UP 4.2s in
+      — exactly the two events RN lets a held key deliver (the native repeat
+      stream is swallowed upstream, so no remote tooling can hold a key where
+      the slider would see it). The focused slider is already its adjusting
+      state — no arm press exists — so the hold lands on the live lower end.
+      The slider must STREAM notches: a hold that lands only the long-press
+      notch is the regression this pins. The ramp's exact cadence is
+      renderer-load-bound (swiftshader quantizes timers to frames; ~24 notches
+      per 4.2s hold on the dev booth, full traverse on real hardware), so the
+      assert bounds the count, not the pace. Needs the debug build with Metro
+      connected — the seam is __DEV__-only. Ends reset to the board's defaults.
   - launch: com.delfiapp.tvimdbrandomizer
   - await: { visible: { id: btn-roll } }
   - await: { idle: true }
@@ -19,11 +20,7 @@ steps:
     args:
       button: [up, up, up, up, up, up, up, up, up]
     delayMs: 700
-  - await: { text: { in: { id: slider-rating }, equals: 'Rating 5.0 to 10.0' } }
-  - echo: OK arms the lower handle; the OK-walk hint appearing proves the slider took the keys
-  - tool: tv-remote
-    args: { button: select }
-  - await: { visible: { text: 'ok: lower · upper · done — arrows adjust' } }
+  - assert: { text: { in: { id: slider-rating }, contains: 'Rating 5.0 to 10.0' } }
   - echo: >-
       A held left lands the long-press notch, then keeps ticking — 4.2s must
       carry it at least past 4.8 (two notches). The stalled build stopped at
@@ -32,10 +29,8 @@ steps:
   - tool: debugger-evaluate
     args: { expression: "__tvdHold('longLeft', 4200); 'hold scheduled'" }
     delayMs: 4500
-  - assert: { text: { in: { id: slider-rating }, matches: '^Rating (4\.[0-8]|[0-3]\.[0-9]) to 10\.0$' } }
-  - echo: Back disarms, then the header reset chip returns the board to its defaults — down onto the band row, three ups, select
-  - tool: tv-remote
-    args: { button: back }
+  - assert: { text: { in: { id: slider-rating }, matches: '^Rating (4\.[0-8]|[0-3]\.[0-9]) to 10\.0' } }
+  - echo: Down to the band row, then three ups to the header reset chip; select it and the board returns to its defaults
   - tool: tv-remote
     args: { button: down }
   - tool: tv-remote
@@ -43,4 +38,4 @@ steps:
     delayMs: 800
   - tool: tv-remote
     args: { button: select }
-  - await: { text: { in: { id: slider-rating }, equals: 'Rating 5.0 to 10.0' } }
+  - await: { text: { in: { id: slider-rating }, contains: 'Rating 5.0 to 10.0' } }

@@ -1,5 +1,5 @@
 steps:
-  - echo: On a verdict with a long plot (+ more), D-pad right from Pick another must move along the action row - the plot must not steal focus. Selecting after the right press must not open the plot
+  - echo: On a long-plot verdict the plot is a clamped teaser that can never take focus — right from Pick another must move along the action row onto Watched it, and selecting there must answer the watched button, not a plot. No expand affordance exists any more; if one ever returns, the hidden check below fails
   - launch: com.delfiapp.tvimdbrandomizer
   - await: { visible: { id: btn-roll } }
   - await: { idle: true }
@@ -11,7 +11,7 @@ steps:
     args: { button: [right, right, right] }
   - tool: tv-remote
     args: { button: select }
-  - await: { text: { in: { id: slider-rating }, equals: 'Rating 0.0 to 3.0' } }
+  - assert: { text: { in: { id: slider-rating }, contains: 'Rating 0.0 to 3.0' } }
   - echo: Year Classic
   - tool: tv-remote
     args: { button: [down, down] }
@@ -20,7 +20,7 @@ steps:
     args: { button: [right, right, right, right, right, right] }
   - tool: tv-remote
     args: { button: select }
-  - await: { text: { in: { id: slider-year }, equals: 'Year 1894 to 1979' } }
+  - assert: { text: { in: { id: slider-year }, contains: 'Year 1894 to 1979' } }
   - echo: Votes Obscure
   - tool: tv-remote
     args: { button: [down, down] }
@@ -29,8 +29,8 @@ steps:
     args: { button: right }
   - tool: tv-remote
     args: { button: select }
-  - await: { text: { in: { id: slider-votes }, equals: 'Votes 0 to 1.0K' } }
-  - echo: Walk down to the pick button and roll; the verdict must show the long plot with its + more affordance
+  - assert: { text: { in: { id: slider-votes }, contains: 'Votes 0 to 1.0K' } }
+  - echo: Walk down to the pick button and roll; the verdict must arrive with its plot and its TMDB credit
   - tool: tv-remote
     args: { button: [down, down, down, down] }
     delayMs: 800
@@ -38,12 +38,15 @@ steps:
   - tool: tv-remote
     args: { button: select }
   - await: { visible: { id: btn-roll-again } }
-  - await: { visible: { text: + more } }
+  - await: { visible: { id: verdict-title } }
   - await: { idle: true }
-  - echo: Right from Pick another, then select; the plot must stay closed - + more still visible and the verdict still up
+  - assert: { visible: { text: 'art & plot' } }
+  - echo: No expand affordance — the clamp states the cut with its ellipsis and the full text lives on IMDb
+  - assert: { hidden: { text: + more } }
+  - echo: Right from Pick another, then select — the watched button answers both presses, so the plot never stole focus and nothing opened
   - tool: tv-remote
     args: { button: right }
   - tool: tv-remote
     args: { button: select }
-  - await: { visible: { text: + more } }
-  - await: { visible: { id: btn-roll-again } }
+  - await: { visible: { text: 'On your list' } }
+  - await: { visible: { text: 'added to your list' } }

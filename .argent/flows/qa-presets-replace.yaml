@@ -28,7 +28,7 @@ steps:
     args: { button: [left, left] }
   - tool: tv-remote
     args: { button: select }
-  - await: { text: { in: { id: slider-rating }, equals: 'Rating 8.0 to 10.0' } }
+  - await: { text: { in: { id: slider-rating }, contains: 'Rating 8.0 to 10.0' } }
   - echo: Presets again, Replace on the card; the summary must now say 8.0-10.0 while the name keeps its default
   - tool: tv-remote
     args: { button: [up, up, up] }

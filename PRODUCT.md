@@ -35,7 +35,7 @@ Your corpus, no algorithm. Exact match counts, user-owned filters, watched-list 
 - session-level no-repeat (`shown` list); watched-list exclusion happens server-side when a session token rides the request
 - account: the device is the account — ANDROID_ID signs in invisibly (`POST /rpc/device_login` finds or creates it); there is no sign-in form, and remote typing never happens
 - presets: save the current board under its auto-name (the receipt line), load it back in two presses, replace a preset's filters while keeping its name, rename (typing only ever by choice), delete; device-only storage, unlimited count, list scrolls
-- verdict screen: title, rating, year, runtime, votes, genres, plot (when the API serves it; long plots open to full text with OK on the plot), placeholder poster panel until TMDB support lands server-side; "Open in Plex" rides the same server-side lookup pattern
+- verdict screen: title, rating, year, runtime, votes, genres, plot (when the API serves it; a long plot clamps to its slot with an ellipsis — the full text lives on IMDb), placeholder poster panel until TMDB support lands server-side; "Open in Plex" rides the same server-side lookup pattern
 - Android TV overscan respected (5% inset); `REQUEST_INSTALL_PACKAGES` exists solely for the OTA handoff
 - undecided: none recorded beyond the two open server asks above
 ## Brand Commitments

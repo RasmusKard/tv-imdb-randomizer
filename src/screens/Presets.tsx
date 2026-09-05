@@ -59,8 +59,8 @@ export function Presets({ filters, onLoad, onBack }: Props) {
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      // back cancels, DONE commits: the escape key never commits a draft —
-      // the slider taught this grammar first (back exits without applying)
+      // back closes the field; the name applied as typed (see onChangeText),
+      // so there is no draft to cancel — nothing a rename opened can be lost
       if (renaming) {
         setRenaming(null);
         return true;
@@ -125,7 +125,12 @@ export function Presets({ filters, onLoad, onBack }: Props) {
 
   const beginRename = (preset: Preset) => {
     setRenaming(preset.id);
-    setDraft(preset.name);
+    // the field opens empty on purpose: a pre-filled field that selects its
+    // text puts the Android editor in selection mode, where the D-pad keys are
+    // eaten for cursor/selection work — the field could not be left (and so
+    // not committed) with the remote. Empty + placeholder types a whole name;
+    // leaving without typing keeps the old one (commitRename's empty guard)
+    setDraft('');
   };
 
   const commitRename = () => {
@@ -180,10 +185,22 @@ export function Presets({ filters, onLoad, onBack }: Props) {
                     <TextInput
                       style={styles.rename}
                       value={draft}
-                      onChangeText={setDraft}
+                      onChangeText={(t) => {
+                        setDraft(t);
+                        // the name applies as typed: every keystroke lands in
+                        // storage, because the D-pad keys never reach the app
+                        // while a TV text field holds focus — there is no
+                        // reliable "done" press to hang a commit on. An empty
+                        // draft changes nothing (commitRename's guard).
+                        if (renaming && t.trim()) {
+                          savePresets(
+                            presets.map((p) => (p.id === renaming ? { ...p, name: t.trim() } : p)),
+                          ).catch(() => setNotice('preset not saved — try again'));
+                        }
+                      }}
                       allowFontScaling={false}
                       autoFocus
-                      selectTextOnFocus
+                      selectTextOnFocus={false}
                       selectionColor={colors.sodium}
                       cursorColor={colors.sodium}
                       placeholder="name this board"

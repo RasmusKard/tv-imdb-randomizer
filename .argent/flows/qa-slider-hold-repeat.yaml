@@ -1,23 +1,23 @@
 steps:
-  - echo: Arm the rating slider's lower handle, then send a tight burst of eight discrete rights; every press must land exactly one notch. Adb presses arrive as ACTION_UP only (the initial DOWN is eaten by the focus engine), so the UP is a press's one guaranteed move — a real held key drives the OS repeat stream (longRight/longLeft DOWNs, one notch each) instead
+  - echo: Fresh launch; the rating slider is its own adjusting state the moment focus lands — there is no arm press and no Back to exit, ok swaps ends, up-down is always navigation. Burst eight discrete rights; every press must land exactly one notch on the live lower end. Adb presses arrive as ACTION_UP only (the initial DOWN is eaten by the focus engine), so the UP is a press's one guaranteed move — a real held key drives the OS repeat stream (longRight/longLeft DOWNs, one notch each) instead
   - launch: com.delfiapp.tvimdbrandomizer
   - await: { visible: { id: btn-roll } }
   - await: { idle: true }
-  - echo: Nine ups walk the focus ladder onto the rating slider itself (the band row below it is eight)
+  - echo: Nine ups walk the focus ladder onto the rating slider itself (the band row below it is eight); the label already names the end the arrows will move
   - tool: tv-remote
     args:
       button: [up, up, up, up, up, up, up, up, up]
     delayMs: 700
-  - await: { text: { in: { id: slider-rating }, equals: 'Rating 5.0 to 10.0' } }
-  - echo: OK arms the lower handle; the OK-walk hint appearing proves the slider took the keys
-  - tool: tv-remote
-    args: { button: select }
-  - await: { visible: { text: 'ok: lower · upper · done — arrows adjust' } }
+  - assert: { text: { in: { id: slider-rating }, contains: 'Rating 5.0 to 10.0' } }
+  - assert: { text: { in: { id: slider-rating }, contains: lower end live } }
   - echo: Eight discrete rights in one call — the automation stand-in for holding the key down
   - tool: tv-remote
     args: { button: right, repeat: 8 }
-  - await: { text: { in: { id: slider-rating }, equals: 'Rating 5.8 to 10.0' } }
-  - echo: Back closes the edit without committing anything further; the value stands at 5.8
+  - echo: The presses landed — the row's head carries the hint once a press reaches the slider, and the lower end moved one notch per press
+  - await: { visible: { text: 'arrows adjust · ok swaps ends' } }
+  - assert: { text: { in: { id: slider-rating }, contains: 'Rating 5.8 to 10.0' } }
+  - echo: Leaving the row is navigation, not an exit — the value applies live, so walking up to the Type row leaves the value standing
   - tool: tv-remote
-    args: { button: back }
-  - await: { text: { in: { id: slider-rating }, equals: 'Rating 5.8 to 10.0' } }
+    args: { button: up }
+    delayMs: 500
+  - assert: { text: { in: { id: slider-rating }, contains: 'Rating 5.8 to 10.0' } }

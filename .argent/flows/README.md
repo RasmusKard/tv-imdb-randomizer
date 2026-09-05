@@ -20,12 +20,12 @@ identity/readiness checks).
 | qa-import-screen | Import screen (the ATV emulator has no LAN address, so the QR is fatally disabled and the header says so); back returns to the board |
 | qa-presets-keep-load | Keep the default board, wander to Great, load the preset back; the board returns to its kept defaults (repeat-safe: the duplicate-keep guard holds the list at one card) |
 | qa-presets-keep-twice | Keeping the same board twice answers `already kept` and stacks no duplicate; ends deleted |
-| qa-presets-rename | Rename a kept preset to `night picks` (typed, committed by leaving the field); ends deleted |
+| qa-presets-rename | Rename a kept preset by typing `night picks` — the name applies as typed (the TV editor never releases focus for a done press, so the flow cannot hang the rename on a leave gesture), then relaunches and requires the renamed card to come back from storage; ends deleted |
 | qa-presets-replace | Replace a kept preset with a Great board; the card keeps its name but carries the new summary; ends deleted |
 | qa-presets-delete | Delete a kept preset; empty state answers and survives a relaunch |
-| qa-verdict-plot-focus | On a long-plot verdict (`+ more` visible), D-pad right from Pick another must stay on the action row — the focusable plot must not steal focus; the select after the right press must not open the plot. Deterministic because every title in the Classic+Awful+Obscure window was given a >210-char plot in the dev DB |
-| qa-slider-hold-repeat | Arm the rating slider and burst eight discrete rights — every press must land exactly one notch (adb presses arrive as ACTION_UP only; a held key drives the OS `longRight`/`longLeft` repeat stream, which the slider now moves once per event) |
-| qa-slider-hold-ramp | Arm the rating slider and replay a real-device *hold* through the `__DEV__` seam (`globalThis.__tvdHold` in App.tsx emits the one `longLeft` DOWN and the UP 4.2s in — the only two events a held key delivers); the slider must stream past its long-press notch (≥ 2 notches; the stalled build lands exactly one and fails). Ends reset to defaults. Needs the debug build + Metro (the seam and `debugger-evaluate` are dev-only); the ramp's cadence itself is renderer-load-bound and was measured by hand — ~24 notches per 4.2s hold under swiftshader, full traverse on real hardware |
+| qa-verdict-plot-focus | On a long-plot verdict the plot is a clamped teaser that can never take focus: the TMDB credit proves the plot renders, a hidden check fails if an expand affordance (`+ more`) ever returns, and right-then-select from Pick another must land on `Watched it` (`On your list` answers) — a focusable plot would have eaten the presses. Deterministic because every title in the Classic+Awful+Obscure window was given a >210-char plot in the dev DB |
+| qa-slider-hold-repeat | The rating slider is its own adjusting state the moment focus lands (no arm press since the ok-walk was removed); the hint and the `lower end live` label prove the row took the keys. A burst of eight discrete rights must land exactly one notch each (`5.0 → 5.8`), and walking off the row must leave the value standing (adb presses arrive as ACTION_UP only; a held key drives the OS `longRight`/`longLeft` repeat stream, which the slider moves once per event) |
+| qa-slider-hold-ramp | Focus the rating slider and replay a real-device *hold* through the `__DEV__` seam (`globalThis.__tvdHold` in App.tsx emits the one `longLeft` DOWN and the UP 4.2s in — the only two events a held key delivers); the slider must stream past its long-press notch (≥ 2 notches; the stalled build lands exactly one and fails). Ends reset to defaults via the header reset chip. Needs the debug build + Metro (the seam and `debugger-evaluate` are dev-only); the ramp's cadence itself is renderer-load-bound and was measured by hand — ~24 notches per 4.2s hold under swiftshader, full traverse on real hardware |
 
 Known gap, reported to the owner: the delete/replace **undo** notice row is a
 focusable Pressable but is not reachable by D-pad from any neighbor — the
@@ -42,8 +42,12 @@ Requires:
 
 - an Android TV emulator booted through `argent run boot-device --avdName …`
   (a raw `emulator -avd …` launch does not register with Argent's tool server),
-- the what-watch API reachable at `http://10.0.2.2:3000` (host port 3000,
-  `~/what-watch-postgre && ./start dev`),
+- the what-watch API reachable at `http://10.0.2.2:3000`. Two sources are known
+  to work: the real corpus (`~/what-watch-postgre && ./start dev`) or, when
+  Docker is not available, the dev stub `node artifacts/fake-api.js 3000` —
+  every roll then lands a brand-new id, every title carries a >210-char plot,
+  and `posterUrl`/`plexUrl` stay null; the flows' assertions are written to
+  hold against either,
 - a release APK built with `EXPO_PUBLIC_API_URL=http://10.0.2.2:3000` and
   `android:usesCleartextTraffic="true"` (the manifest patch is required for
   release builds to talk to the plain-HTTP local API; it is kept uncommitted
@@ -53,6 +57,19 @@ Exception: `qa-slider-hold-ramp` replays its hold through the JS runtime
 (`debugger-evaluate` → `globalThis.__tvdHold`), so it runs against the debug
 build with Metro connected (`adb reverse tcp:8081 tcp:8081`) instead of the
 release APK.
+
+Two key injections matter on this platform:
+
+- the keyboard step (`adb input text`) leaves the system keyboard "shown";
+  while it is shown the next D-pad press is swallowed before it reaches the
+  app, so a flow that types must dismiss the keyboard (a hardware `back`
+  works and does not reach the app) before driving the remote again;
+- a rename cannot be committed by a leave gesture at all — the editor never
+  blurs. MainActivity's `dispatchKeyEvent` (mirrored by
+  `plugins/esc-to-back.js`) folds ok/up/down into the editor's IME action
+  while a text editor is on screen, so on real hardware "dismiss the
+  keyboard, then leave" commits; the rename flow instead proves persistence
+  across a relaunch, which survives the injection quirks.
 
 Side effects: none anymore — the import flow only opens the screen (its QR is
 fatally disabled on the ATV emulator, and the paste route is gone); the

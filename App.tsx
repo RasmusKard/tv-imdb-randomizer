@@ -128,12 +128,15 @@ export default function App() {
   const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
   const watchedRef = useRef(watchedIds);
   watchedRef.current = watchedIds;
-  useEffect(() => {
-    if (!session) return;
-    fetchWatched(session.token)
+  const refreshWatched = useCallback((s: Session | null) => {
+    if (!s) return;
+    fetchWatched(s.token)
       .then((ids) => setWatchedIds(new Set(ids)))
       .catch(() => {}); // an unreadable list must not blank the board
-  }, [session]);
+  }, []);
+  useEffect(() => {
+    refreshWatched(session);
+  }, [session, refreshWatched]);
 
   // a token the server rejects means the stored session is dead: forget it and
   // sign in again as the same device — the board reads anonymous meanwhile.
@@ -185,8 +188,12 @@ export default function App() {
   const [importedAt, setImportedAt] = useState(0);
   const onImported = useCallback(() => {
     setQueue([]);
+    // the pushed ids must be in the roll's seen-filter too, not just on the
+    // server: an anonymous-window fetch before the next sign-in would
+    // otherwise serve them back as unseen
+    refreshWatched(sessionRef.current);
     setImportedAt((n) => n + 1);
-  }, []);
+  }, [refreshWatched]);
 
   // session state, not a filter: it survives filter changes so a roll never
   // repeats, and it is read through a ref so the count debounce below does not

@@ -28,7 +28,7 @@ steps:
     args: { button: [left, left] }
   - tool: tv-remote
     args: { button: select }
-  - await: { text: { in: { id: slider-rating }, equals: 'Rating 8.0 to 10.0' } }
+  - await: { text: { in: { id: slider-rating }, contains: 'Rating 8.0 to 10.0' } }
   - echo: 'Into presets again (up 3 to the header from the band row, right to presets), load the kept card; the board must return to 5.0-10.0'
   - tool: tv-remote
     args: { button: [up, up, up] }
@@ -44,5 +44,5 @@ steps:
   - tool: tv-remote
     args: { button: select }
   - await: { visible: { id: btn-roll } }
-  - await: { text: { in: { id: slider-rating }, equals: 'Rating 5.0 to 10.0' } }
+  - await: { text: { in: { id: slider-rating }, contains: 'Rating 5.0 to 10.0' } }
   - await: { idle: true }

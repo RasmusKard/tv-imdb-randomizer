@@ -1,5 +1,5 @@
 steps:
-  - echo: Rename a kept preset by typing a new name; the card must carry it. Starts by keeping this board and ends with the preset deleted
+  - echo: Rename a kept preset by typing a new name — the name applies as typed and survives a relaunch; the card must carry it. Starts by keeping this board and ends with the preset deleted
   - launch: com.delfiapp.tvimdbrandomizer
   - await: { visible: { id: btn-roll } }
   - await: { idle: true }
@@ -16,7 +16,7 @@ steps:
   - tool: tv-remote
     args: { button: select }
   - await: { visible: { text: Load preset } }
-  - echo: Down to the card, two rights onto Rename, select; the name field opens with the old name
+  - echo: Down to the card, two rights onto Rename, select; the name field opens empty and focused, ready to type
   - tool: tv-remote
     args: { button: down }
     delayMs: 600
@@ -25,27 +25,25 @@ steps:
   - tool: tv-remote
     args: { button: select }
   - await: { visible: { id: preset-rename-input } }
-  - echo: Type night picks, then down to leave the field; the card must carry the new name
+  - echo: Type night picks; the field must hold exactly the typed name — it opens empty, so typing writes the whole name. The name applies as typed (storage carries every keystroke; the TV editor never releases focus for a done press)
   - tool: keyboard
     args: { text: night picks }
-  - await: { text: { in: { id: preset-rename-input }, contains: night picks } }
-  - tool: tv-remote
-    args: { button: down }
-  - await: { visible: { text: Load preset night picks } }
-  - echo: Clean up via the board so focus is known - back, presets, delete
-  - tool: tv-remote
-    args: { button: back }
+  - assert: { text: { in: { id: preset-rename-input }, equals: night picks } }
+  - echo: Relaunch; the renamed card must come back from storage — the rename persisted
+  - tool: restart-app
+    args: { bundleId: com.delfiapp.tvimdbrandomizer }
   - await: { visible: { id: btn-roll } }
   - await: { idle: true }
   - tool: tv-remote
     args: { button: [up, up, up, up, up, up, up, up, up, up, up] }
-    delayMs: 800
+    delayMs: 700
   - tool: tv-remote
     args: { button: right }
   - tool: tv-remote
     args: { button: select }
   - await: { visible: { text: Load preset night picks } }
   - await: { idle: true }
+  - echo: Clean up - delete the card, the list must empty
   - tool: tv-remote
     args: { button: down }
     delayMs: 600
