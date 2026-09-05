@@ -32,6 +32,38 @@ export function nudge(
   return next;
 }
 
+/** True when `side` cannot take `dir`: blocked by the axis wall, or by its
+ *  partner sitting one step away (the closest a legal range may close). */
+export function blocked(
+  axis: Axis,
+  value: readonly [number, number],
+  side: 0 | 1,
+  dir: -1 | 1,
+): boolean {
+  return nudge(axis, value, side, dir)[side] === value[side];
+}
+
+/**
+ * The end a direction should drive: the live end — unless it is blocked and its
+ * partner can take the step, in which case the partner takes it (and the amber
+ * mark follows). When both ends are blocked the live end stands, and the step
+ * lands nowhere.
+ *
+ * Pure, so the handoff rules that matter (a wall hands off; a hold never
+ * re-evaluates; a dead range never silently re-marks) are checkable without a
+ * device.
+ */
+export function driver(
+  axis: Axis,
+  value: readonly [number, number],
+  live: 0 | 1,
+  dir: -1 | 1,
+): 0 | 1 {
+  if (!blocked(axis, value, live, dir)) return live;
+  const other: 0 | 1 = live === 0 ? 1 : 0;
+  return blocked(axis, value, other, dir) ? live : other;
+}
+
 /** True when the range covers the whole axis, i.e. the filter is off. */
 export const isWholeAxis = (axis: Axis, value: readonly [number, number]) =>
   value[0] <= axis.min && value[1] >= axis.max;

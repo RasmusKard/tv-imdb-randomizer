@@ -11,7 +11,7 @@ import { buildQuery, withShown } from '../api/client';
 import { extractImdbIds } from './csv';
 import { AXES, RANGE_KEYS, THIS_YEAR } from '../config/filters';
 import { pickUpdate, type Manifest } from '../update/compare';
-import { nudge } from './range';
+import { nudge, blocked, driver } from './range';
 
 // tiny local assert, so this file needs no dependency and no @types/node
 const assert = {
@@ -89,6 +89,47 @@ check('the votes axis is linear, not log', () => {
   // a linear axis puts 10% of the value at 10% of the track, not bunched near zero
   assert.ok(Math.abs(ax.pos(ax.max / 10) - 0.1) < 1e-9, `${ax.max / 10} sits at ${ax.pos(ax.max / 10)}`);
   assert.ok(Math.abs(ax.pos(ax.max / 2) - 0.5) < 1e-9, `${ax.max / 2} sits at ${ax.pos(ax.max / 2)}`);
+});
+
+console.log('handoff');
+
+check('blocked means wall or partner, nothing else', () => {
+  const ax = AXES.rating;
+  // at the axis wall
+  assert.ok(blocked(ax, [0, 10], 0, -1), 'lower at min must not go left');
+  assert.ok(blocked(ax, [0, 10], 1, 1), 'upper at max must not go right');
+  // at the partner (one step is the closest a legal range may close)
+  assert.ok(blocked(ax, [9.9, 10], 0, 1), 'lower one step below upper must not rise');
+  assert.ok(blocked(ax, [0, 0.1], 1, -1), 'upper one step above lower must not fall');
+  // every interior step is free
+  assert.ok(!blocked(ax, [0.1, 10], 0, -1), 'lower off the wall can fall');
+  assert.ok(!blocked(ax, [9.8, 10], 0, 1), 'lower two steps below upper can rise');
+  assert.ok(!blocked(ax, [0, 9.9], 1, 1), 'upper off the wall can rise');
+});
+
+check('a direction the live end cannot take goes to the other end', () => {
+  const ax = AXES.rating;
+  // the first gesture from Any, pressing left: the lower end is at the wall,
+  // so the ceiling takes the step and the mark moves with it
+  assert.equal(driver(ax, [0, 10], 0, -1), 1);
+  // and its mirror from Any, pressing right
+  assert.equal(driver(ax, [0, 10], 1, 1), 0);
+  // off the walls, the live end always keeps the step
+  assert.equal(driver(ax, [5, 10], 0, 1), 0);
+  assert.equal(driver(ax, [5, 10], 0, -1), 0);
+  assert.equal(driver(ax, [0, 5], 1, -1), 1);
+});
+
+check('when both ends are blocked the live end stands and the step lands nowhere', () => {
+  const ax = AXES.rating;
+  // a one-step range: 9.9–10.0, live lower, pressing right — the partner blocks
+  // the lower end and the axis wall blocks the upper end
+  assert.equal(driver(ax, [9.9, 10], 0, 1), 0);
+  // its mirror: 0.0–0.1, live lower, pressing left
+  assert.equal(driver(ax, [0, 0.1], 0, -1), 0);
+  // and with the mark on the upper end instead
+  assert.equal(driver(ax, [9.9, 10], 1, 1), 1);
+  assert.equal(driver(ax, [0, 0.1], 1, -1), 1);
 });
 
 console.log('bands');

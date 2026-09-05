@@ -7,7 +7,7 @@ import { T } from '../components/T';
 import { AXES, GENRES, KINDS, testId, type RangeKey } from '../config/filters';
 import { Chip, type ChipState } from '../components/Chip';
 import { GridRow } from '../components/GridRow';
-import { RangeSlider, type Editing } from '../components/RangeSlider';
+import { RangeSlider } from '../components/RangeSlider';
 import { COLS, colors, displayHeavy, layout, mono, s, screen, text } from '../theme';
 import { UpdateModal } from '../components/UpdateModal';
 import type { UpdateInfo } from '../update/compare';
@@ -55,21 +55,18 @@ export function Board({ filters, setFilters, count, picking, pending, onRoll, fo
   // down-then-up returns to the same chip instead of geometry's centre guess
   const [typeFirst, setTypeFirst] = useState<View | null>(null);
 
-  // At most one slider is armed at a time, tracked here rather than inside
-  // each RangeSlider: a bare touch or a pointer-mode IR remote can activate a
-  // different control directly, bypassing the D-pad focus trap that would
-  // otherwise stop it, so whichever control fires next needs one shared place
-  // to close out the slider that thought it still had the keys.
+  // At most one slider holds the board's arrows at a time, tracked here rather
+  // than inside each RangeSlider: a bare touch or a pointer-mode IR remote can
+  // activate a different control directly by coordinate without Android ever
+  // moving its view focus there — bypassing the focus the slider keys off — so
+  // whichever control fires next needs one shared place to stand the slider down.
   const [activeRange, setActiveRange] = useState<RangeKey | null>(null);
-  const [activeSide, setActiveSide] = useState<Editing>(null);
   const closeEdit = useCallback(() => {
     setActiveRange(null);
-    setActiveSide(null);
   }, []);
-  const handleEditingChange = useCallback((key: RangeKey, side: Editing) => {
-    setActiveRange(side === null ? null : key);
-    setActiveSide(side);
-    if (side !== null) setFocusedKey(testId.slider(key));
+  const handleDrivingChange = useCallback((key: RangeKey, on: boolean) => {
+    setActiveRange(on ? key : null);
+    if (on) setFocusedKey(testId.slider(key));
   }, []);
 
   // A touch or a pointer-mode IR remote can activate any control directly by
@@ -227,8 +224,8 @@ export function Board({ filters, setFilters, count, picking, pending, onRoll, fo
             filters={filters}
             setFilters={setFilters}
             closeEdit={closeEdit}
-            editing={activeRange === 'rating' ? activeSide : null}
-            onEditingChange={(side) => handleEditingChange('rating', side)}
+            driving={activeRange === 'rating'}
+            onDrivingChange={(on) => handleDrivingChange('rating', on)}
             focusedKey={focusedKey}
             setFocusedKey={setFocusedKey}
             registerNode={setRatingNode}
@@ -241,8 +238,8 @@ export function Board({ filters, setFilters, count, picking, pending, onRoll, fo
             filters={filters}
             setFilters={setFilters}
             closeEdit={closeEdit}
-            editing={activeRange === 'year' ? activeSide : null}
-            onEditingChange={(side) => handleEditingChange('year', side)}
+            driving={activeRange === 'year'}
+            onDrivingChange={(on) => handleDrivingChange('year', on)}
             focusedKey={focusedKey}
             setFocusedKey={setFocusedKey}
             registerNode={setYearNode}
@@ -254,8 +251,8 @@ export function Board({ filters, setFilters, count, picking, pending, onRoll, fo
             filters={filters}
             setFilters={setFilters}
             closeEdit={closeEdit}
-            editing={activeRange === 'votes' ? activeSide : null}
-            onEditingChange={(side) => handleEditingChange('votes', side)}
+            driving={activeRange === 'votes'}
+            onDrivingChange={(on) => handleDrivingChange('votes', on)}
             focusedKey={focusedKey}
             setFocusedKey={setFocusedKey}
             registerNode={setVotesNode}
@@ -390,8 +387,8 @@ function RangeBlock({
   filters,
   setFilters,
   closeEdit,
-  editing,
-  onEditingChange,
+  driving,
+  onDrivingChange,
   focusedKey,
   setFocusedKey,
   registerNode,
@@ -402,10 +399,11 @@ function RangeBlock({
   rangeKey: RangeKey;
   filters: Filters;
   setFilters: (f: Filters) => void;
-  /** Closes whichever slider (if any) is currently armed, board-wide. */
+  /** Stands whichever slider (if any) is currently driving down, board-wide. */
   closeEdit: () => void;
-  editing: Editing;
-  onEditingChange: (editing: Editing) => void;
+  /** True while this slider holds the board's arrows. */
+  driving: boolean;
+  onDrivingChange: (driving: boolean) => void;
   /** The most recently pressed control board-wide, by testID. */
   focusedKey: string | null;
   setFocusedKey: (key: string) => void;
@@ -422,25 +420,18 @@ function RangeBlock({
   const value = filters[rangeKey];
   const [firstBand, setFirstBand] = useState<View | null>(null);
 
-  // While a slider is mid-edit, values are changing every notch — highlighting
-  // a band the moment its exact numbers are passed through would flash on and
-  // off as the handle keeps moving. Freeze the band row's own copy of the
-  // value for the duration and only let it catch up once editing exits, so a
-  // band lights up for landing on it, not for passing through it.
-  const isEditing = editing !== null;
-  // While a slider is mid-edit, values are changing every notch — highlighting
-  // a band the moment its exact numbers are passed through would flash on and
-  // off as the handle keeps moving. Freeze the band row's own copy of the
-  // value for the duration and only let it catch up once editing exits, so a
-  // band lights up for landing on it, not for passing through it.
+  // While a slider holds the arrows, values are changing every notch —
+  // highlighting a band the moment its exact numbers are passed through would
+  // flash on and off as the handle keeps moving. Freeze the band row's own copy
+  // of the value for the duration and only let it catch up once the driving
+  // ends, so a band lights up for landing on it, not for passing through it.
   const frozen = useRef(value);
-  if (!isEditing) frozen.current = value;
-  const bandValue = isEditing ? frozen.current : value;
+  if (!driving) frozen.current = value;
+  const bandValue = driving ? frozen.current : value;
 
-  // the OK-walk is the one convention nothing on screen teaches; borrow the
-  // genres aside slot to say it, but only while this slider is armed — once
-  // the sequence is known the hint is noise
-  const hint = isEditing ? 'ok: lower · upper · done — arrows adjust' : undefined;
+  // the grammar nothing on screen teaches; borrow the genres aside slot to say
+  // it while the row holds focus — the chevrons on the amber end carry the rest
+  const hint = focusedKey === testId.slider(rangeKey) ? 'arrows adjust · ok swaps ends' : undefined;
 
   return (
     <Block label={axis.label} aside={hint}>
@@ -452,9 +443,8 @@ function RangeBlock({
         nextFocusDown={firstBand}
         nextFocusUp={sliderAbove}
         registerNode={registerNode}
-        selfNode={sliderNode}
-        editing={editing}
-        onEditingChange={onEditingChange}
+        driving={driving}
+        onDrivingChange={onDrivingChange}
         hasTVPreferredFocus={focusedKey === testId.slider(rangeKey)}
       />
       <GridRow registerFirst={setFirstBand} rowFocusUp={sliderNode} rowFocusDown={sliderBelow}>
